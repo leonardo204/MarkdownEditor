@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 // 메인 콘텐츠 뷰
 // 에디터와 미리보기를 분할 화면으로 표시
@@ -7,8 +8,12 @@ struct ContentView: View {
     @Binding var document: MarkdownDocument
     @StateObject private var appState = AppState()
     @State private var htmlContent: String = ""
+    @State private var isDropTargeted: Bool = false
 
     private let markdownProcessor = MarkdownProcessor()
+
+    // 지원하는 파일 타입
+    private let supportedTypes: [UTType] = [.markdown, .plainText]
 
     var body: some View {
         HSplitView {
@@ -64,10 +69,76 @@ struct ContentView: View {
                 updatePreview()
             }
         }
+        // 파일 드래그 앤 드롭
+        .onDrop(of: supportedTypes, isTargeted: $isDropTargeted) { providers in
+            handleDrop(providers: providers)
+        }
+        .overlay(
+            // 드롭 영역 하이라이트
+            Group {
+                if isDropTargeted {
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.accentColor, lineWidth: 3)
+                        .background(Color.accentColor.opacity(0.1))
+                }
+            }
+        )
     }
 
     private func updatePreview() {
         htmlContent = markdownProcessor.convertToHTML(document.content)
+    }
+
+    // MARK: - 파일 드롭 처리
+    private func handleDrop(providers: [NSItemProvider]) -> Bool {
+        guard let provider = providers.first else { return false }
+
+        // 파일 URL 로드
+        if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+            provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, error in
+                guard error == nil,
+                      let data = item as? Data,
+                      let url = URL(dataRepresentation: data, relativeTo: nil) else {
+                    return
+                }
+
+                // 파일 읽기
+                if let content = try? String(contentsOf: url, encoding: .utf8) {
+                    DispatchQueue.main.async {
+                        document.content = content
+                        updatePreview()
+                    }
+                }
+            }
+            return true
+        }
+
+        // 텍스트 데이터 로드
+        for type in [UTType.markdown, UTType.plainText] {
+            if provider.hasItemConformingToTypeIdentifier(type.identifier) {
+                provider.loadItem(forTypeIdentifier: type.identifier, options: nil) { item, error in
+                    guard error == nil else { return }
+
+                    var content: String?
+
+                    if let data = item as? Data {
+                        content = String(data: data, encoding: .utf8)
+                    } else if let string = item as? String {
+                        content = string
+                    }
+
+                    if let content = content {
+                        DispatchQueue.main.async {
+                            document.content = content
+                            updatePreview()
+                        }
+                    }
+                }
+                return true
+            }
+        }
+
+        return false
     }
 }
 

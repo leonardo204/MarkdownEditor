@@ -58,3 +58,5 @@ Carthage/Build/
 
 # Archives
 *.xcarchive
+*.png
+playwright_mcp_documentation.md

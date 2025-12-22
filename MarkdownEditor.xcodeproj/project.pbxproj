@@ -13,6 +13,7 @@
 		44071A816C7DA46E51C4C5EE /* EditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74A050CE0D0294B0B6278F2B /* EditorView.swift */; };
 		54CC35EC32A43AD8FBDB9B7C /* preview-light.css in Resources */ = {isa = PBXBuildFile; fileRef = 0A9DF81531D8FA7617DFED29 /* preview-light.css */; };
 		5FCCEAED9CCC9070BECEC2A9 /* MarkdownProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE95E5BBF83EADAD8BEE08B1 /* MarkdownProcessor.swift */; };
+		8983F0EC17AAC0EB79F1762B /* SimpleEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 333A7F3D8C26C27C63EB5F62 /* SimpleEditorView.swift */; };
 		8DF0852F3E63BF572DED3F41 /* MarkdownEditorApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 176947D8F164DC9495B09066 /* MarkdownEditorApp.swift */; };
 		9D89EB90AE62A1677EDE4858 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B9B583FEA2240924E3E652F /* ContentView.swift */; };
 		A698EC87E1817BEB97D1788B /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 495CA61B8869CB463712583F /* SettingsView.swift */; };
@@ -36,6 +37,7 @@
 		039C03EE31BC468EF80789A1 /* preview-dark.css */ = {isa = PBXFileReference; lastKnownFileType = text.css; path = "preview-dark.css"; sourceTree = "<group>"; };
 		0A9DF81531D8FA7617DFED29 /* preview-light.css */ = {isa = PBXFileReference; lastKnownFileType = text.css; path = "preview-light.css"; sourceTree = "<group>"; };
 		176947D8F164DC9495B09066 /* MarkdownEditorApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownEditorApp.swift; sourceTree = "<group>"; };
+		333A7F3D8C26C27C63EB5F62 /* SimpleEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimpleEditorView.swift; sourceTree = "<group>"; };
 		338049E96A635FBB0255D8C9 /* MarkdownEditorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownEditorTests.swift; sourceTree = "<group>"; };
 		371AD5E138DBC5FE6F19FFE8 /* PreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewView.swift; sourceTree = "<group>"; };
 		397899383C3948EE1EF25587 /* MarkdownEditorTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MarkdownEditorTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -140,6 +142,7 @@
 				74A050CE0D0294B0B6278F2B /* EditorView.swift */,
 				371AD5E138DBC5FE6F19FFE8 /* PreviewView.swift */,
 				495CA61B8869CB463712583F /* SettingsView.swift */,
+				333A7F3D8C26C27C63EB5F62 /* SimpleEditorView.swift */,
 				99BBFC134DD17A6E3FA5C9D5 /* ToolbarView.swift */,
 			);
 			path = Views;
@@ -262,6 +265,7 @@
 				5FCCEAED9CCC9070BECEC2A9 /* MarkdownProcessor.swift in Sources */,
 				AD8CE50151D6505BAE5766B4 /* PreviewView.swift in Sources */,
 				A698EC87E1817BEB97D1788B /* SettingsView.swift in Sources */,
+				8983F0EC17AAC0EB79F1762B /* SimpleEditorView.swift in Sources */,
 				B8DCFEFBDBB5CDBED45A3DAD /* ToolbarView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

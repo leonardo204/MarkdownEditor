@@ -4,12 +4,48 @@ import AppKit
 // NSTextView를 래핑한 Markdown 에디터 뷰
 // 라인 번호, 구문 강조를 지원합니다.
 
+// MARK: - 에디터 액션 핸들러
+class EditorActionHandler: ObservableObject {
+    weak var textView: NSTextView?
+
+    func performAction(_ action: MarkdownAction) {
+        guard let textView = textView else { return }
+
+        let selectedRange = textView.selectedRange()
+        let selectedText = (textView.string as NSString).substring(with: selectedRange)
+
+        var newText: String
+
+        if action.wrapsSelection && !selectedText.isEmpty {
+            // 선택된 텍스트를 래핑
+            newText = action.prefix + selectedText + action.suffix
+        } else if action.wrapsSelection {
+            // 기본 텍스트로 래핑
+            newText = action.prefix + action.defaultText + action.suffix
+        } else {
+            // 단순 삽입
+            newText = action.prefix + action.defaultText
+        }
+
+        // Undo 지원을 위해 insertText 사용
+        textView.insertText(newText, replacementRange: selectedRange)
+
+        // 커서 위치 조정 (래핑된 경우 기본 텍스트 선택)
+        if action.wrapsSelection && selectedText.isEmpty {
+            let newSelectionStart = selectedRange.location + action.prefix.count
+            let newSelectionLength = action.defaultText.count
+            textView.setSelectedRange(NSRange(location: newSelectionStart, length: newSelectionLength))
+        }
+    }
+}
+
 struct EditorView: NSViewRepresentable {
     @Binding var content: String
     var theme: EditorTheme
     var fontSize: CGFloat
     var showLineNumbers: Bool
     var onTextChange: ((String) -> Void)?
+    var actionHandler: EditorActionHandler?
 
     func makeNSView(context: Context) -> NSScrollView {
         let scrollView = NSScrollView()
@@ -49,6 +85,9 @@ struct EditorView: NSViewRepresentable {
         // 초기 내용 설정
         textView.string = content
         applyTheme(to: textView, theme: theme, fontSize: fontSize)
+
+        // 액션 핸들러 연결
+        actionHandler?.textView = textView
 
         return scrollView
     }
@@ -218,7 +257,6 @@ class LineNumberRulerView: NSRulerView {
 
         // 라인 번호 그리기
         var lineNumber = 1
-        var glyphIndex = 0
         let textString = textView.string as NSString
 
         // 보이는 영역 이전의 라인 수 계산
@@ -263,7 +301,6 @@ class SyntaxHighlighter {
 
     func highlight(_ textStorage: NSTextStorage) {
         let text = textStorage.string
-        let fullRange = NSRange(location: 0, length: text.utf16.count)
 
         // 헤딩 (#, ##, ###, ...)
         applyPattern("^#{1,6}\\s.*$", color: headingColor, to: textStorage, in: text)

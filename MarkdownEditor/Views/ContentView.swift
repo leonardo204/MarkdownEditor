@@ -7,6 +7,7 @@ import UniformTypeIdentifiers
 struct ContentView: View {
     @Binding var document: MarkdownDocument
     @StateObject private var appState = AppState()
+    @StateObject private var editorActionHandler = EditorActionHandler()
     @State private var htmlContent: String = ""
     @State private var isDropTargeted: Bool = false
 
@@ -24,6 +25,13 @@ struct ContentView: View {
 
                 Divider()
 
+                // 툴바
+                ToolbarView { action in
+                    editorActionHandler.performAction(action)
+                }
+
+                Divider()
+
                 // 에디터 뷰
                 EditorView(
                     content: $document.content,
@@ -32,7 +40,8 @@ struct ContentView: View {
                     showLineNumbers: appState.showLineNumbers,
                     onTextChange: { _ in
                         updatePreview()
-                    }
+                    },
+                    actionHandler: editorActionHandler
                 )
             }
             .frame(minWidth: 300)

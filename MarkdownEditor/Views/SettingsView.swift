@@ -20,8 +20,13 @@ struct SettingsView: View {
                 .tabItem {
                     Label("General", systemImage: "gear")
                 }
+
+            AboutSettingsView()
+                .tabItem {
+                    Label("About", systemImage: "info.circle")
+                }
         }
-        .frame(width: 450, height: 300)
+        .frame(width: 420, height: 260)
     }
 }
 
@@ -44,37 +49,54 @@ struct EditorSettingsView: View {
     ]
 
     var body: some View {
-        Form {
-            Section {
-                // 테마 선택
-                Picker("Theme", selection: $editorTheme) {
+        VStack(alignment: .leading, spacing: 12) {
+            // 테마 선택
+            HStack {
+                Text("Theme")
+                    .frame(width: 100, alignment: .leading)
+                Picker("", selection: $editorTheme) {
                     Text("Dark").tag("dark")
                     Text("Light").tag("light")
                 }
+                .labelsHidden()
+                .frame(width: 120)
+            }
 
-                // 폰트 선택
-                Picker("Font", selection: $fontName) {
+            // 폰트 선택
+            HStack {
+                Text("Font")
+                    .frame(width: 100, alignment: .leading)
+                Picker("", selection: $fontName) {
                     ForEach(availableFonts, id: \.self) { font in
                         Text(font).tag(font)
                     }
                 }
+                .labelsHidden()
+                .frame(width: 160)
+            }
 
-                // 폰트 크기
-                HStack {
-                    Text("Font Size")
-                    Spacer()
-                    Slider(value: $fontSize, in: 10...24, step: 1)
-                        .frame(width: 150)
-                    Text("\(Int(fontSize))")
-                        .frame(width: 30)
-                }
+            // 폰트 크기
+            HStack {
+                Text("Font Size")
+                    .frame(width: 100, alignment: .leading)
+                Slider(value: $fontSize, in: 10...24, step: 1)
+                    .frame(width: 140)
+                Text("\(Int(fontSize)) pt")
+                    .foregroundColor(.secondary)
+                    .frame(width: 45, alignment: .trailing)
+            }
 
-                // 라인 번호 표시
-                Toggle("Show line numbers", isOn: $showLineNumbers)
+            // 라인 번호 표시
+            HStack {
+                Text("Line Numbers")
+                    .frame(width: 100, alignment: .leading)
+                Toggle("", isOn: $showLineNumbers)
+                    .labelsHidden()
+                Spacer()
             }
         }
-        .formStyle(.grouped)
-        .padding()
+        .padding(20)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }
 
@@ -85,26 +107,42 @@ struct PreviewSettingsView: View {
     @AppStorage("autoReloadPreview") private var autoReloadPreview: Bool = true
 
     var body: some View {
-        Form {
-            Section {
-                // 테마 선택
-                Picker("Theme", selection: $previewTheme) {
+        VStack(alignment: .leading, spacing: 12) {
+            // 테마 선택
+            HStack {
+                Text("Theme")
+                    .frame(width: 100, alignment: .leading)
+                Picker("", selection: $previewTheme) {
                     Text("Dark").tag("dark")
                     Text("Light").tag("light")
                 }
+                .labelsHidden()
+                .frame(width: 120)
+            }
 
-                // 기본 모드
-                Picker("Default mode", selection: $previewMode) {
+            // 기본 모드
+            HStack {
+                Text("Default Mode")
+                    .frame(width: 100, alignment: .leading)
+                Picker("", selection: $previewMode) {
                     Text("Preview").tag("preview")
                     Text("HTML Source").tag("html")
                 }
+                .labelsHidden()
+                .frame(width: 120)
+            }
 
-                // 자동 새로고침
-                Toggle("Auto reload on change", isOn: $autoReloadPreview)
+            // 자동 새로고침
+            HStack {
+                Text("Auto Reload")
+                    .frame(width: 100, alignment: .leading)
+                Toggle("", isOn: $autoReloadPreview)
+                    .labelsHidden()
+                Spacer()
             }
         }
-        .formStyle(.grouped)
-        .padding()
+        .padding(20)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }
 
@@ -115,37 +153,88 @@ struct GeneralSettingsView: View {
     @AppStorage("autosaveInterval") private var autosaveInterval: Double = 30
 
     var body: some View {
-        Form {
-            Section {
-                // 스크롤 동기화
-                Toggle("Sync scrolling between editor and preview", isOn: $syncScrolling)
-
-                // 자동 저장
-                Toggle("Auto save", isOn: $autosave)
-
-                if autosave {
-                    HStack {
-                        Text("Auto save interval")
-                        Spacer()
-                        Slider(value: $autosaveInterval, in: 10...120, step: 10)
-                            .frame(width: 150)
-                        Text("\(Int(autosaveInterval))s")
-                            .frame(width: 40)
-                    }
-                }
+        VStack(alignment: .leading, spacing: 12) {
+            // 스크롤 동기화
+            HStack {
+                Text("Scroll Sync")
+                    .frame(width: 100, alignment: .leading)
+                Toggle("", isOn: $syncScrolling)
+                    .labelsHidden()
+                Text("Sync editor and preview")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Spacer()
             }
 
-            Section {
+            // 자동 저장
+            HStack {
+                Text("Auto Save")
+                    .frame(width: 100, alignment: .leading)
+                Toggle("", isOn: $autosave)
+                    .labelsHidden()
+                Spacer()
+            }
+
+            // 자동 저장 간격
+            if autosave {
                 HStack {
-                    Text("Version")
-                    Spacer()
-                    Text("1.0.0")
+                    Text("Save Interval")
+                        .frame(width: 100, alignment: .leading)
+                    Slider(value: $autosaveInterval, in: 10...120, step: 10)
+                        .frame(width: 140)
+                    Text("\(Int(autosaveInterval)) sec")
                         .foregroundColor(.secondary)
+                        .frame(width: 50, alignment: .trailing)
                 }
             }
         }
-        .formStyle(.grouped)
-        .padding()
+        .padding(20)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+}
+
+// MARK: - About 설정
+struct AboutSettingsView: View {
+    private var appVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
+    }
+
+    private var buildNumber: String {
+        Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
+    }
+
+    var body: some View {
+        VStack(spacing: 16) {
+            // 앱 아이콘
+            Image(nsImage: NSApp.applicationIconImage)
+                .resizable()
+                .frame(width: 64, height: 64)
+
+            // 앱 이름
+            Text("Markdown Editor")
+                .font(.title2)
+                .fontWeight(.semibold)
+
+            // 버전 정보
+            Text("Version \(appVersion) (\(buildNumber))")
+                .font(.caption)
+                .foregroundColor(.secondary)
+
+            Divider()
+                .frame(width: 200)
+
+            // 저작 정보
+            VStack(spacing: 4) {
+                Text("© 2025 All rights reserved.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+
+                Link("zerolive7@gmail.com", destination: URL(string: "mailto:zerolive7@gmail.com")!)
+                    .font(.caption)
+            }
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

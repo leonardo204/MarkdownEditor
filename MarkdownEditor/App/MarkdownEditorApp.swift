@@ -26,8 +26,7 @@ struct MarkdownEditorApp: App {
         // 설정 화면
         #if os(macOS)
         Settings {
-            Text("설정")
-                .frame(width: 400, height: 300)
+            SettingsView()
         }
         #endif
     }

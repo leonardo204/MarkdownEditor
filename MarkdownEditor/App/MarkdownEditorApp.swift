@@ -80,24 +80,51 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - 파일 열기 이벤트 처리 (더블클릭, Open With)
 
     func application(_ application: NSApplication, open urls: [URL]) {
-        for url in urls {
+        let validURLs = urls.filter { url in
             let ext = url.pathExtension.lowercased()
-            guard ext == "md" || ext == "markdown" || ext == "txt" || ext == "text" else {
-                continue
-            }
+            return ext == "md" || ext == "markdown" || ext == "txt" || ext == "text"
+        }
 
-            // Security-scoped resource 접근 시작
-            let didStartAccessing = url.startAccessingSecurityScopedResource()
-            defer {
-                if didStartAccessing {
-                    url.stopAccessingSecurityScopedResource()
+        guard !validURLs.isEmpty else { return }
+
+        // 첫 번째 파일은 기존 빈 창에서 열기 (있다면)
+        if let firstURL = validURLs.first {
+            // Security-scoped resource 접근
+            _ = firstURL.startAccessingSecurityScopedResource()
+
+            // 빈 창이 있으면 그 창에서 열기
+            if let emptyWindow = findEmptyDocumentWindow() {
+                if let documentManager = WindowDocumentManagerRegistry.shared.documentManager(for: emptyWindow) {
+                    documentManager.loadFile(from: firstURL)
+                    // 나머지 파일들은 새 창에서 열기
+                    for url in validURLs.dropFirst() {
+                        _ = url.startAccessingSecurityScopedResource()
+                        PendingFileManager.shared.addPendingFile(url)
+                        NotificationCenter.default.post(name: .openFileInNewWindow, object: url)
+                    }
+                    return
                 }
             }
+        }
 
-            // PendingFileManager에 추가하고 새 창 열기
+        // 빈 창이 없으면 모든 파일을 새 창에서 열기
+        for url in validURLs {
+            _ = url.startAccessingSecurityScopedResource()
             PendingFileManager.shared.addPendingFile(url)
             NotificationCenter.default.post(name: .openFileInNewWindow, object: url)
         }
+    }
+
+    // 빈 문서 창 찾기
+    private func findEmptyDocumentWindow() -> NSWindow? {
+        for window in NSApp.windows {
+            if let documentManager = WindowDocumentManagerRegistry.shared.documentManager(for: window) {
+                if documentManager.currentFileURL == nil && documentManager.content.isEmpty {
+                    return window
+                }
+            }
+        }
+        return nil
     }
 
     // MARK: - 기본 앱 설정 확인

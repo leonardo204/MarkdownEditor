@@ -5,6 +5,7 @@ import CoreServices
 // MARK: - Notification 확장
 extension Notification.Name {
     static let openFileInNewWindow = Notification.Name("openFileInNewWindow")
+    static let loadFileInCurrentWindow = Notification.Name("loadFileInCurrentWindow")
 }
 
 // macOS Markdown Editor 애플리케이션
@@ -92,35 +93,57 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             _ = url.startAccessingSecurityScopedResource()
         }
 
-        // 빈 창이 있으면 첫 번째 파일을 그 창에서 열기
-        if let emptyWindow = findEmptyDocumentWindow(),
-           let documentManager = WindowDocumentManagerRegistry.shared.documentManager(for: emptyWindow),
-           let firstURL = validURLs.first {
-            documentManager.loadFile(from: firstURL)
-            // 나머지 파일들은 새 창에서 열기
-            for url in validURLs.dropFirst() {
-                PendingFileManager.shared.addPendingFile(url)
-                NotificationCenter.default.post(name: .openFileInNewWindow, object: url)
-            }
-            return
+        // 기존 창들 확인
+        let existingWindows = NSApp.windows.filter { window in
+            WindowDocumentManagerRegistry.shared.documentManager(for: window) != nil
         }
 
-        // 창이 아직 없는 경우 (콜드 스타트)
-        // 첫 번째 파일은 PendingFileManager에 추가 (기본 창에서 열림)
-        // 나머지 파일들만 새 창에서 열기
-        if let firstURL = validURLs.first {
-            PendingFileManager.shared.addPendingFile(firstURL)
-            // 나머지 파일들은 약간의 지연 후 새 창에서 열기
-            let remainingURLs = Array(validURLs.dropFirst())
-            if !remainingURLs.isEmpty {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    for url in remainingURLs {
-                        PendingFileManager.shared.addPendingFile(url)
-                        NotificationCenter.default.post(name: .openFileInNewWindow, object: url)
+        // 창이 있는 경우 (앱이 이미 실행 중)
+        if !existingWindows.isEmpty {
+            // 빈 창이 있으면 첫 번째 파일을 그 창에서 열기
+            if let emptyWindow = findEmptyDocumentWindow(),
+               let documentManager = WindowDocumentManagerRegistry.shared.documentManager(for: emptyWindow),
+               let firstURL = validURLs.first {
+                documentManager.loadFile(from: firstURL)
+                emptyWindow.makeKeyAndOrderFront(nil)
+                // 나머지 파일들은 새 창에서 열기
+                for url in validURLs.dropFirst() {
+                    openInNewWindow(url)
+                }
+            } else {
+                // 빈 창이 없으면 모든 파일을 새 창에서 열기
+                for url in validURLs {
+                    openInNewWindow(url)
+                }
+            }
+        } else {
+            // 창이 없는 경우 (콜드 스타트)
+            // 기본 창이 생성되면 그 창에서 파일을 로드하도록 알림 사용
+            if let firstURL = validURLs.first {
+                // 첫 번째 파일은 pending에 추가 + 알림으로 로드 요청
+                PendingFileManager.shared.addPendingFile(firstURL)
+                // 창이 준비되면 로드하도록 알림 (약간의 지연)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    NotificationCenter.default.post(name: .loadFileInCurrentWindow, object: nil)
+                }
+
+                // 나머지 파일들은 추가 지연 후 새 창에서 열기
+                let remainingURLs = Array(validURLs.dropFirst())
+                if !remainingURLs.isEmpty {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                        for url in remainingURLs {
+                            self.openInNewWindow(url)
+                        }
                     }
                 }
             }
         }
+    }
+
+    // 새 창에서 파일 열기 헬퍼
+    private func openInNewWindow(_ url: URL) {
+        PendingFileManager.shared.addPendingFile(url)
+        NotificationCenter.default.post(name: .openFileInNewWindow, object: url)
     }
 
     // 빈 문서 창 찾기

@@ -197,6 +197,15 @@ struct MainContentView: View {
             }
             updatePreview()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .loadFileInCurrentWindow)) { _ in
+            // 콜드 스타트 시 pending 파일 로드 (현재 창이 비어있을 때만)
+            if documentManager.currentFileURL == nil && documentManager.content.isEmpty {
+                if let pendingURL = PendingFileManager.shared.popPendingFile() {
+                    documentManager.loadFile(from: pendingURL)
+                    updatePreview()
+                }
+            }
+        }
         .background(WindowAccessor(documentManager: documentManager))
         .onChange(of: documentManager.content) { _ in
             if appState.autoReloadPreview {

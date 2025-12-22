@@ -52,10 +52,25 @@ struct EditorView: NSViewRepresentable {
         let scrollView = NSScrollView()
         scrollView.hasVerticalScroller = true
         scrollView.hasHorizontalScroller = false
-        scrollView.autohidesScrollers = true
+        scrollView.autohidesScrollers = false
         scrollView.borderType = .noBorder
+        scrollView.drawsBackground = true
 
-        let textView = MarkdownTextView()
+        // 텍스트 컨테이너 생성
+        let textContainer = NSTextContainer()
+        textContainer.widthTracksTextView = true
+        textContainer.heightTracksTextView = false
+
+        // 레이아웃 매니저 생성
+        let layoutManager = NSLayoutManager()
+        layoutManager.addTextContainer(textContainer)
+
+        // 텍스트 스토리지 생성
+        let textStorage = NSTextStorage()
+        textStorage.addLayoutManager(layoutManager)
+
+        // 텍스트 뷰 생성
+        let textView = MarkdownTextView(frame: .zero, textContainer: textContainer)
         textView.delegate = context.coordinator
         textView.isRichText = false
         textView.allowsUndo = true
@@ -68,23 +83,24 @@ struct EditorView: NSViewRepresentable {
         // 파일 드롭 핸들러 설정
         textView.onFileDrop = onFileDrop
 
-        // 텍스트 컨테이너 설정
-        textView.textContainer?.containerSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
-        textView.textContainer?.widthTracksTextView = true
-        textView.isHorizontallyResizable = false
+        // 텍스트 뷰 크기 설정
+        textView.minSize = NSSize(width: 0, height: 0)
+        textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         textView.isVerticallyResizable = true
+        textView.isHorizontallyResizable = false
         textView.autoresizingMask = [.width]
 
         // 기본 스타일 설정
         textView.textContainerInset = NSSize(width: 8, height: 12)
+
+        // 스크롤 뷰에 텍스트 뷰 설정
+        scrollView.documentView = textView
 
         // 라인 번호 뷰 설정
         let lineNumberView = LineNumberRulerView(textView: textView)
         scrollView.verticalRulerView = lineNumberView
         scrollView.hasVerticalRuler = showLineNumbers
         scrollView.rulersVisible = showLineNumbers
-
-        scrollView.documentView = textView
 
         // 초기 내용 설정
         textView.string = content

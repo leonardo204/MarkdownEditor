@@ -47,9 +47,13 @@ Carthage/Build/
 *~
 
 # Distribution
+dist/
 *.dmg
 *.app
 *.pkg
+
+# Logs
+logs/
 
 # IDE
 .idea/

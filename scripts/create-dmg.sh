@@ -20,13 +20,18 @@ cd "$PROJECT_DIR"
 # 설정
 APP_NAME="MarkdownEditor"
 BUILD_DIR="$PROJECT_DIR/build"
+DIST_DIR="$PROJECT_DIR/dist"
 EXPORT_PATH="$BUILD_DIR/export"
 APP_PATH="$EXPORT_PATH/$APP_NAME.app"
 DMG_PATH="$BUILD_DIR/$APP_NAME.dmg"
 VERSION=$(defaults read "$APP_PATH/Contents/Info.plist" CFBundleShortVersionString 2>/dev/null || echo "1.0.0")
-DMG_NAME="${APP_NAME}-${VERSION}"
-FINAL_DMG_PATH="$BUILD_DIR/${DMG_NAME}.dmg"
+BUILD_TIME=$(date +"%Y%m%d_%H%M%S")
+DMG_NAME="${APP_NAME}-${VERSION}-${BUILD_TIME}"
+FINAL_DMG_PATH="$DIST_DIR/${DMG_NAME}.dmg"
 KEYCHAIN_PROFILE="notarytool"
+
+# dist 폴더 생성
+mkdir -p "$DIST_DIR"
 
 # 앱 존재 확인
 if [ ! -d "$APP_PATH" ]; then

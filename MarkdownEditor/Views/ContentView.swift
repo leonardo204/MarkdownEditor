@@ -125,7 +125,7 @@ struct MainContentView: View {
     @StateObject private var actionHandler = EditorActionHandler()
     @StateObject private var scrollSyncManager = ScrollSyncManager()
     @State private var htmlContent: String = ""
-    @Environment(\.openWindow) private var openWindow
+    @State private var pendingFileCheckTimer: Timer?
 
     private let markdownProcessor = MarkdownProcessor()
 
@@ -191,25 +191,64 @@ struct MainContentView: View {
         .navigationTitle(documentManager.windowTitle + (documentManager.isModified ? " *" : ""))
         .focusedSceneValue(\.documentManager, documentManager)
         .onAppear {
-            // Pending 파일이 있으면 로드
-            if let pendingURL = PendingFileManager.shared.popPendingFile() {
-                documentManager.loadFile(from: pendingURL)
+            DebugLogger.shared.log("MainContentView.onAppear")
+
+            // 즉시 pending 파일 확인
+            if tryLoadPendingFile() {
+                DebugLogger.shared.log("Loaded pending file immediately")
+            } else {
+                // 파일이 없으면 폴링 시작 (최대 1초간)
+                DebugLogger.shared.log("No pending file, starting polling")
+                startPendingFilePolling()
             }
+
             updatePreview()
         }
-        .onReceive(NotificationCenter.default.publisher(for: .loadFileInCurrentWindow)) { _ in
-            // 콜드 스타트 시 pending 파일 로드 (현재 창이 비어있을 때만)
-            if documentManager.currentFileURL == nil && documentManager.content.isEmpty {
-                if let pendingURL = PendingFileManager.shared.popPendingFile() {
-                    documentManager.loadFile(from: pendingURL)
-                    updatePreview()
-                }
-            }
+        .onDisappear {
+            // 타이머 정리
+            pendingFileCheckTimer?.invalidate()
+            pendingFileCheckTimer = nil
         }
         .background(WindowAccessor(documentManager: documentManager))
         .onChange(of: documentManager.content) { _ in
             if appState.autoReloadPreview {
                 updatePreview()
+            }
+        }
+    }
+
+    // pending 파일 로드 시도 (성공하면 true)
+    private func tryLoadPendingFile() -> Bool {
+        // 이미 파일이 열려있으면 스킵
+        guard documentManager.currentFileURL == nil && documentManager.content.isEmpty else {
+            return false
+        }
+
+        if let pendingURL = FileOpenManager.shared.popPendingFile() {
+            DebugLogger.shared.log("Loading pending file: \(pendingURL.lastPathComponent)")
+            documentManager.loadFile(from: pendingURL)
+            updatePreview()
+            return true
+        }
+        return false
+    }
+
+    // 폴링으로 pending 파일 확인 (타이밍 문제 해결용)
+    private func startPendingFilePolling() {
+        var attempts = 0
+        let maxAttempts = 20  // 최대 1초 (50ms * 20)
+
+        pendingFileCheckTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { timer in
+            attempts += 1
+
+            if tryLoadPendingFile() {
+                DebugLogger.shared.log("Polling: loaded file on attempt \(attempts)")
+                timer.invalidate()
+                pendingFileCheckTimer = nil
+            } else if attempts >= maxAttempts {
+                DebugLogger.shared.log("Polling: max attempts reached, stopping")
+                timer.invalidate()
+                pendingFileCheckTimer = nil
             }
         }
     }
@@ -226,8 +265,11 @@ struct MainContentView: View {
 
         // 현재 창이 비어있으면 첫 번째 파일을 현재 창에서 열기
         if documentManager.currentFileURL == nil && documentManager.content.isEmpty {
-            documentManager.loadFile(from: fileURLs[0])
-            updatePreview()
+            // 첫 번째 파일이 이미 열려있는지 확인
+            if !WindowDocumentManagerRegistry.shared.bringToFrontIfAlreadyOpen(fileURLs[0], closeEmptyWindow: false) {
+                documentManager.loadFile(from: fileURLs[0])
+                updatePreview()
+            }
             // 나머지 파일들은 새 창에서 열기
             urlsToOpenInNewWindows = Array(fileURLs.dropFirst())
         } else {
@@ -241,18 +283,39 @@ struct MainContentView: View {
             urlsToOpenInNewWindows = fileURLs
         }
 
-        // 새 창에서 파일 열기
+        // 새 창에서 파일 열기 (중복 체크 후 pending에 추가)
+        var filesToOpen: [URL] = []
         for fileURL in urlsToOpenInNewWindows {
-            openFileInNewWindow(fileURL)
+            // 이미 열린 파일이면 해당 창으로 이동
+            if !WindowDocumentManagerRegistry.shared.bringToFrontIfAlreadyOpen(fileURL) {
+                filesToOpen.append(fileURL)
+            }
+        }
+
+        // 파일들을 pending에 추가하고 순차적으로 창 열기
+        if !filesToOpen.isEmpty {
+            openFilesInNewWindows(filesToOpen)
         }
     }
 
-    // 새 창에서 파일 열기
-    private func openFileInNewWindow(_ fileURL: URL) {
-        // 파일 URL을 pending 큐에 추가하고 새 창 열기
-        PendingFileManager.shared.addPendingFile(fileURL)
-        // SwiftUI의 openWindow 사용
-        openWindow(id: "main")
+    // 여러 파일을 새 창에서 열기 (순차적으로)
+    private func openFilesInNewWindows(_ fileURLs: [URL]) {
+        guard !fileURLs.isEmpty else { return }
+
+        DebugLogger.shared.log("openFilesInNewWindows: \(fileURLs.count) files")
+
+        // 모든 파일을 pending에 추가
+        for url in fileURLs {
+            FileOpenManager.shared.addPendingFile(url, checkDuplicate: false)
+        }
+
+        // 순차적으로 창 열기 (각 창 사이에 딜레이)
+        for (index, _) in fileURLs.enumerated() {
+            DispatchQueue.main.asyncAfter(deadline: .now() + Double(index) * 0.1) {
+                DebugLogger.shared.log("Triggering new window \(index + 1)/\(fileURLs.count)")
+                NewWindowTrigger.shared.trigger()
+            }
+        }
     }
 }
 
@@ -268,26 +331,6 @@ extension FocusedValues {
     }
 }
 
-// MARK: - 새 창 열기용 Pending 파일 관리
-class PendingFileManager {
-    static let shared = PendingFileManager()
-    private var pendingFileURLs: [URL] = []
-    private let lock = NSLock()
-
-    // 파일 추가
-    func addPendingFile(_ url: URL) {
-        lock.lock()
-        pendingFileURLs.append(url)
-        lock.unlock()
-    }
-
-    // 다음 파일 가져오기 (큐에서 제거)
-    func popPendingFile() -> URL? {
-        lock.lock()
-        defer { lock.unlock() }
-        return pendingFileURLs.isEmpty ? nil : pendingFileURLs.removeFirst()
-    }
-}
 
 // MARK: - 윈도우 접근자 (DocumentManager를 윈도우에 등록 및 닫기 처리)
 struct WindowAccessor: NSViewRepresentable {
@@ -299,11 +342,15 @@ struct WindowAccessor: NSViewRepresentable {
 
     func makeNSView(context: Context) -> NSView {
         let view = NSView()
+        DebugLogger.shared.log("WindowAccessor.makeNSView called")
         DispatchQueue.main.async {
             if let window = view.window {
+                DebugLogger.shared.log("WindowAccessor.makeNSView - Registering window")
                 WindowDocumentManagerRegistry.shared.register(documentManager, for: window)
                 // 윈도우 delegate 설정
                 context.coordinator.setupWindow(window)
+            } else {
+                DebugLogger.shared.log("WindowAccessor.makeNSView - No window yet")
             }
         }
         return view

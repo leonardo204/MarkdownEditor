@@ -1,5 +1,6 @@
 import SwiftUI
 import UniformTypeIdentifiers
+import CoreServices
 
 // macOS Markdown Editor 애플리케이션
 // 단일 윈도우 기반 앱 구조
@@ -55,8 +56,84 @@ struct MarkdownEditorApp: App {
     }
 }
 
-// MARK: - App Delegate (앱 종료 시 저장 확인)
+// MARK: - App Delegate (앱 종료 시 저장 확인 + 첫 실행 시 기본 앱 설정)
 class AppDelegate: NSObject, NSApplicationDelegate {
+
+    private let hasAskedDefaultAppKey = "HasAskedToSetAsDefaultApp"
+    private let bundleIdentifier = "com.zerolive.MarkdownEditor"
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        // 첫 실행 시 기본 앱 설정 제안
+        checkAndOfferDefaultApp()
+    }
+
+    // MARK: - 기본 앱 설정 확인
+
+    private func checkAndOfferDefaultApp() {
+        // 이미 물어봤으면 스킵
+        if UserDefaults.standard.bool(forKey: hasAskedDefaultAppKey) {
+            return
+        }
+
+        // 현재 .md 파일의 기본 앱 확인
+        let markdownUTI = "net.daringfireball.markdown" as CFString
+        if let currentHandler = LSCopyDefaultRoleHandlerForContentType(markdownUTI, .all)?.takeRetainedValue() as String? {
+            // 이미 이 앱이 기본 앱이면 스킵
+            if currentHandler == bundleIdentifier {
+                UserDefaults.standard.set(true, forKey: hasAskedDefaultAppKey)
+                return
+            }
+        }
+
+        // 기본 앱 설정 다이얼로그 표시
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [self] in
+            showDefaultAppAlert()
+        }
+    }
+
+    private func showDefaultAppAlert() {
+        let alert = NSAlert()
+        alert.messageText = "Markdown Editor를 기본 앱으로 설정하시겠습니까?"
+        alert.informativeText = ".md 및 .markdown 파일을 더블클릭하면 이 앱으로 열립니다."
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "기본 앱으로 설정")
+        alert.addButton(withTitle: "나중에")
+        alert.addButton(withTitle: "다시 묻지 않기")
+
+        let response = alert.runModal()
+
+        switch response {
+        case .alertFirstButtonReturn:  // 기본 앱으로 설정
+            setAsDefaultApp()
+            UserDefaults.standard.set(true, forKey: hasAskedDefaultAppKey)
+        case .alertSecondButtonReturn:  // 나중에
+            // 다음 실행 시 다시 물어봄
+            break
+        case .alertThirdButtonReturn:  // 다시 묻지 않기
+            UserDefaults.standard.set(true, forKey: hasAskedDefaultAppKey)
+        default:
+            break
+        }
+    }
+
+    private func setAsDefaultApp() {
+        let markdownUTI = "net.daringfireball.markdown" as CFString
+        let publicTextUTI = "public.plain-text" as CFString
+
+        // .md, .markdown 파일 연결
+        LSSetDefaultRoleHandlerForContentType(markdownUTI, .all, bundleIdentifier as CFString)
+
+        // 추가로 일반 텍스트도 에디터로 설정 (선택적)
+        LSSetDefaultRoleHandlerForContentType(publicTextUTI, .editor, bundleIdentifier as CFString)
+
+        // 완료 알림
+        let successAlert = NSAlert()
+        successAlert.messageText = "설정 완료"
+        successAlert.informativeText = "Markdown Editor가 .md 파일의 기본 앱으로 설정되었습니다."
+        successAlert.alertStyle = .informational
+        successAlert.addButton(withTitle: "확인")
+        successAlert.runModal()
+    }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         // 모든 윈도우의 수정 상태 확인

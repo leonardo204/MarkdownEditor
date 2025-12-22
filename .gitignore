@@ -60,3 +60,4 @@ Carthage/Build/
 *.xcarchive
 *.png
 playwright_mcp_documentation.md
+sample-video.mov

@@ -1,0 +1,255 @@
+/* Markdown Preview - Dark Theme */
+
+:root {
+    --bg-color: #1e1e1e;
+    --text-color: #d4d4d4;
+    --heading-color: #569cd6;
+    --link-color: #4fc1ff;
+    --code-bg: #2d2d2d;
+    --code-text: #ce9178;
+    --blockquote-border: #569cd6;
+    --blockquote-bg: #252526;
+    --table-border: #3c3c3c;
+    --table-header-bg: #2d2d2d;
+    --hr-color: #3c3c3c;
+    --mark-bg: #806d00;
+    --mark-text: #ffffff;
+}
+
+body.dark {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    padding: 20px;
+    margin: 0;
+}
+
+.markdown-body {
+    max-width: 100%;
+    margin: 0 auto;
+}
+
+/* 헤딩 */
+h1, h2, h3, h4, h5, h6 {
+    color: var(--heading-color);
+    margin-top: 24px;
+    margin-bottom: 16px;
+    font-weight: 600;
+    line-height: 1.25;
+}
+
+h1 { font-size: 2em; border-bottom: 1px solid var(--hr-color); padding-bottom: 0.3em; }
+h2 { font-size: 1.5em; border-bottom: 1px solid var(--hr-color); padding-bottom: 0.3em; }
+h3 { font-size: 1.25em; }
+h4 { font-size: 1em; }
+h5 { font-size: 0.875em; }
+h6 { font-size: 0.85em; color: #6a737d; }
+
+/* 문단 */
+p {
+    margin-top: 0;
+    margin-bottom: 16px;
+}
+
+/* 링크 */
+a {
+    color: var(--link-color);
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+/* 강조 */
+strong {
+    font-weight: 600;
+    color: #dcdcaa;
+}
+
+em {
+    font-style: italic;
+    color: #c586c0;
+}
+
+del {
+    text-decoration: line-through;
+    color: #808080;
+}
+
+/* 인라인 코드 */
+code {
+    background-color: var(--code-bg);
+    color: var(--code-text);
+    padding: 0.2em 0.4em;
+    border-radius: 3px;
+    font-family: 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
+    font-size: 85%;
+}
+
+/* 코드 블록 */
+pre {
+    background-color: var(--code-bg);
+    border-radius: 6px;
+    padding: 16px;
+    overflow: auto;
+    font-size: 85%;
+    line-height: 1.45;
+    margin-bottom: 16px;
+}
+
+pre code {
+    background-color: transparent;
+    padding: 0;
+    border-radius: 0;
+    font-size: 100%;
+}
+
+/* 인용구 */
+blockquote {
+    border-left: 4px solid var(--blockquote-border);
+    background-color: var(--blockquote-bg);
+    padding: 12px 20px;
+    margin: 0 0 16px 0;
+    color: #9cdcfe;
+}
+
+blockquote > :first-child {
+    margin-top: 0;
+}
+
+blockquote > :last-child {
+    margin-bottom: 0;
+}
+
+/* 리스트 */
+ul, ol {
+    padding-left: 2em;
+    margin-top: 0;
+    margin-bottom: 16px;
+}
+
+li {
+    margin-bottom: 4px;
+}
+
+li + li {
+    margin-top: 4px;
+}
+
+/* 체크박스 리스트 */
+input[type="checkbox"] {
+    margin-right: 8px;
+    vertical-align: middle;
+}
+
+/* 테이블 */
+table {
+    border-collapse: collapse;
+    width: 100%;
+    margin-bottom: 16px;
+    overflow: auto;
+}
+
+th, td {
+    border: 1px solid var(--table-border);
+    padding: 8px 12px;
+    text-align: left;
+}
+
+th {
+    background-color: var(--table-header-bg);
+    font-weight: 600;
+}
+
+tr:nth-child(even) {
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+/* 수평선 */
+hr {
+    border: none;
+    border-top: 1px solid var(--hr-color);
+    margin: 24px 0;
+}
+
+/* 이미지 */
+img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+}
+
+/* 하이라이트 */
+mark {
+    background-color: var(--mark-bg);
+    color: var(--mark-text);
+    padding: 0.1em 0.3em;
+    border-radius: 2px;
+}
+
+/* 위/아래 첨자 */
+sup, sub {
+    font-size: 75%;
+    line-height: 0;
+    position: relative;
+    vertical-align: baseline;
+}
+
+sup {
+    top: -0.5em;
+}
+
+sub {
+    bottom: -0.25em;
+}
+
+/* 각주 */
+.footnote {
+    font-size: 0.875em;
+    color: #808080;
+    border-top: 1px solid var(--hr-color);
+    padding-top: 16px;
+    margin-top: 32px;
+}
+
+.footnote a {
+    color: var(--link-color);
+}
+
+/* 다이어그램 */
+.mermaid {
+    background-color: #2d2d2d;
+    padding: 16px;
+    border-radius: 6px;
+    margin-bottom: 16px;
+    text-align: center;
+}
+
+.diagram-error {
+    background-color: #5a1d1d;
+    color: #f48771;
+    padding: 12px;
+    border-radius: 6px;
+    margin-bottom: 16px;
+    font-family: monospace;
+}
+
+/* 수식 */
+.math-block {
+    text-align: center;
+    margin: 16px 0;
+    overflow-x: auto;
+}
+
+.math-inline {
+    padding: 0 2px;
+}
+
+/* Highlight.js 오버라이드 */
+.hljs {
+    background: transparent !important;
+    padding: 0 !important;
+}

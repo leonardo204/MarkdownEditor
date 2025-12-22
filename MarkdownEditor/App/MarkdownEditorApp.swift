@@ -2,6 +2,11 @@ import SwiftUI
 import UniformTypeIdentifiers
 import CoreServices
 
+// MARK: - Notification 확장
+extension Notification.Name {
+    static let openFileInNewWindow = Notification.Name("openFileInNewWindow")
+}
+
 // macOS Markdown Editor 애플리케이션
 // 단일 윈도우 기반 앱 구조
 
@@ -9,11 +14,16 @@ import CoreServices
 struct MarkdownEditorApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @FocusedValue(\.documentManager) var focusedDocumentManager
+    @Environment(\.openWindow) private var openWindow
 
     var body: some Scene {
         // 메인 윈도우 - 각 윈도우마다 독립적인 DocumentManager 생성
         WindowGroup(id: "main") {
             MainContentView()
+                .onReceive(NotificationCenter.default.publisher(for: .openFileInNewWindow)) { _ in
+                    // 새 창 열기 (PendingFileManager에서 파일 URL 가져옴)
+                    openWindow(id: "main")
+                }
         }
         .commands {
             // 파일 메뉴 커맨드 - FocusedValue를 통해 현재 윈도우의 documentManager 접근
@@ -65,6 +75,29 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         // 첫 실행 시 기본 앱 설정 제안
         checkAndOfferDefaultApp()
+    }
+
+    // MARK: - 파일 열기 이벤트 처리 (더블클릭, Open With)
+
+    func application(_ application: NSApplication, open urls: [URL]) {
+        for url in urls {
+            let ext = url.pathExtension.lowercased()
+            guard ext == "md" || ext == "markdown" || ext == "txt" || ext == "text" else {
+                continue
+            }
+
+            // Security-scoped resource 접근 시작
+            let didStartAccessing = url.startAccessingSecurityScopedResource()
+            defer {
+                if didStartAccessing {
+                    url.stopAccessingSecurityScopedResource()
+                }
+            }
+
+            // PendingFileManager에 추가하고 새 창 열기
+            PendingFileManager.shared.addPendingFile(url)
+            NotificationCenter.default.post(name: .openFileInNewWindow, object: url)
+        }
     }
 
     // MARK: - 기본 앱 설정 확인

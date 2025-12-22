@@ -87,31 +87,39 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         guard !validURLs.isEmpty else { return }
 
-        // 첫 번째 파일은 기존 빈 창에서 열기 (있다면)
-        if let firstURL = validURLs.first {
-            // Security-scoped resource 접근
-            _ = firstURL.startAccessingSecurityScopedResource()
+        // Security-scoped resource 접근
+        for url in validURLs {
+            _ = url.startAccessingSecurityScopedResource()
+        }
 
-            // 빈 창이 있으면 그 창에서 열기
-            if let emptyWindow = findEmptyDocumentWindow() {
-                if let documentManager = WindowDocumentManagerRegistry.shared.documentManager(for: emptyWindow) {
-                    documentManager.loadFile(from: firstURL)
-                    // 나머지 파일들은 새 창에서 열기
-                    for url in validURLs.dropFirst() {
-                        _ = url.startAccessingSecurityScopedResource()
+        // 빈 창이 있으면 첫 번째 파일을 그 창에서 열기
+        if let emptyWindow = findEmptyDocumentWindow(),
+           let documentManager = WindowDocumentManagerRegistry.shared.documentManager(for: emptyWindow),
+           let firstURL = validURLs.first {
+            documentManager.loadFile(from: firstURL)
+            // 나머지 파일들은 새 창에서 열기
+            for url in validURLs.dropFirst() {
+                PendingFileManager.shared.addPendingFile(url)
+                NotificationCenter.default.post(name: .openFileInNewWindow, object: url)
+            }
+            return
+        }
+
+        // 창이 아직 없는 경우 (콜드 스타트)
+        // 첫 번째 파일은 PendingFileManager에 추가 (기본 창에서 열림)
+        // 나머지 파일들만 새 창에서 열기
+        if let firstURL = validURLs.first {
+            PendingFileManager.shared.addPendingFile(firstURL)
+            // 나머지 파일들은 약간의 지연 후 새 창에서 열기
+            let remainingURLs = Array(validURLs.dropFirst())
+            if !remainingURLs.isEmpty {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    for url in remainingURLs {
                         PendingFileManager.shared.addPendingFile(url)
                         NotificationCenter.default.post(name: .openFileInNewWindow, object: url)
                     }
-                    return
                 }
             }
-        }
-
-        // 빈 창이 없으면 모든 파일을 새 창에서 열기
-        for url in validURLs {
-            _ = url.startAccessingSecurityScopedResource()
-            PendingFileManager.shared.addPendingFile(url)
-            NotificationCenter.default.post(name: .openFileInNewWindow, object: url)
         }
     }
 

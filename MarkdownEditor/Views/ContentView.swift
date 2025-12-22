@@ -1,5 +1,4 @@
 import SwiftUI
-import UniformTypeIdentifiers
 
 // 메인 콘텐츠 뷰
 // 에디터와 미리보기를 분할 화면으로 표시
@@ -9,7 +8,6 @@ struct MainContentView: View {
     @StateObject private var appState = AppState()
     @StateObject private var editorActionHandler = EditorActionHandler()
     @State private var htmlContent: String = ""
-    @State private var isDropTargeted: Bool = false
 
     private let markdownProcessor = MarkdownProcessor()
 
@@ -40,6 +38,10 @@ struct MainContentView: View {
                     showLineNumbers: appState.showLineNumbers,
                     onTextChange: { newContent in
                         documentManager.updateContent(newContent)
+                        updatePreview()
+                    },
+                    onFileDrop: { fileURL in
+                        documentManager.loadFile(from: fileURL)
                         updatePreview()
                     },
                     actionHandler: editorActionHandler
@@ -80,43 +82,10 @@ struct MainContentView: View {
                 updatePreview()
             }
         }
-        // 파일 드래그 앤 드롭
-        .onDrop(of: [.fileURL], isTargeted: $isDropTargeted) { providers in
-            handleFileDrop(providers: providers)
-        }
-        .overlay(
-            // 드롭 영역 하이라이트
-            Group {
-                if isDropTargeted {
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.accentColor, lineWidth: 3)
-                        .background(Color.accentColor.opacity(0.1))
-                }
-            }
-        )
     }
 
     private func updatePreview() {
         htmlContent = markdownProcessor.convertToHTML(documentManager.content)
-    }
-
-    // MARK: - 파일 드롭 처리
-    private func handleFileDrop(providers: [NSItemProvider]) -> Bool {
-        guard let provider = providers.first else { return false }
-
-        // 파일 URL 로드
-        provider.loadObject(ofClass: URL.self) { url, error in
-            guard error == nil, let fileURL = url else {
-                print("드롭 오류: \(error?.localizedDescription ?? "알 수 없는 오류")")
-                return
-            }
-
-            DispatchQueue.main.async {
-                documentManager.loadFile(from: fileURL)
-                updatePreview()
-            }
-        }
-        return true
     }
 }
 

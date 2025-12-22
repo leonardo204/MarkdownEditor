@@ -45,6 +45,7 @@ struct EditorView: NSViewRepresentable {
     var fontSize: CGFloat
     var showLineNumbers: Bool
     var onTextChange: ((String) -> Void)?
+    var onFileDrop: ((URL) -> Void)?
     var actionHandler: EditorActionHandler?
 
     func makeNSView(context: Context) -> NSScrollView {
@@ -63,6 +64,9 @@ struct EditorView: NSViewRepresentable {
         textView.isAutomaticDashSubstitutionEnabled = false
         textView.isAutomaticTextReplacementEnabled = false
         textView.isAutomaticSpellingCorrectionEnabled = false
+
+        // 파일 드롭 핸들러 설정
+        textView.onFileDrop = onFileDrop
 
         // 텍스트 컨테이너 설정
         textView.textContainer?.containerSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
@@ -176,6 +180,9 @@ struct EditorView: NSViewRepresentable {
 
 // MARK: - 커스텀 NSTextView
 class MarkdownTextView: NSTextView {
+    // 파일 드롭 핸들러
+    var onFileDrop: ((URL) -> Void)?
+
     override func keyDown(with event: NSEvent) {
         // Tab 키 처리 (스페이스 4개로 변환)
         if event.keyCode == 48 { // Tab
@@ -183,6 +190,37 @@ class MarkdownTextView: NSTextView {
             return
         }
         super.keyDown(with: event)
+    }
+
+    // 드래그 앤 드롭 - 허용하는 타입
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        let dominated = sender.draggingPasteboard.canReadObject(forClasses: [NSURL.self], options: [
+            .urlReadingFileURLsOnly: true
+        ])
+        if dominated {
+            return .copy
+        }
+        return super.draggingEntered(sender)
+    }
+
+    // 드래그 앤 드롭 - 파일 처리
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        let pasteboard = sender.draggingPasteboard
+
+        // 파일 URL 확인
+        if let urls = pasteboard.readObjects(forClasses: [NSURL.self], options: [
+            .urlReadingFileURLsOnly: true
+        ]) as? [URL], let fileURL = urls.first {
+            // 마크다운 또는 텍스트 파일인지 확인
+            let ext = fileURL.pathExtension.lowercased()
+            if ext == "md" || ext == "markdown" || ext == "txt" || ext == "text" {
+                onFileDrop?(fileURL)
+                return true
+            }
+        }
+
+        // 다른 타입은 기본 동작 (텍스트 붙여넣기 등)
+        return super.performDragOperation(sender)
     }
 }
 

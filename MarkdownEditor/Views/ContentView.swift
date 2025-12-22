@@ -4,17 +4,14 @@ import UniformTypeIdentifiers
 // 메인 콘텐츠 뷰
 // 에디터와 미리보기를 분할 화면으로 표시
 
-struct ContentView: View {
-    @Binding var document: MarkdownDocument
+struct MainContentView: View {
+    @EnvironmentObject var documentManager: DocumentManager
     @StateObject private var appState = AppState()
     @StateObject private var editorActionHandler = EditorActionHandler()
     @State private var htmlContent: String = ""
     @State private var isDropTargeted: Bool = false
 
     private let markdownProcessor = MarkdownProcessor()
-
-    // 지원하는 파일 타입
-    private let supportedTypes: [UTType] = [.markdown, .plainText]
 
     var body: some View {
         HSplitView {
@@ -34,11 +31,15 @@ struct ContentView: View {
 
                 // 에디터 뷰
                 EditorView(
-                    content: $document.content,
+                    content: Binding(
+                        get: { documentManager.content },
+                        set: { documentManager.updateContent($0) }
+                    ),
                     theme: appState.editorTheme,
                     fontSize: appState.fontSize,
                     showLineNumbers: appState.showLineNumbers,
-                    onTextChange: { _ in
+                    onTextChange: { newContent in
+                        documentManager.updateContent(newContent)
                         updatePreview()
                     },
                     actionHandler: editorActionHandler
@@ -70,17 +71,18 @@ struct ContentView: View {
             .frame(minWidth: 300)
         }
         .frame(minWidth: 800, minHeight: 600)
+        .navigationTitle(documentManager.windowTitle + (documentManager.isModified ? " *" : ""))
         .onAppear {
             updatePreview()
         }
-        .onChange(of: document.content) { _ in
+        .onChange(of: documentManager.content) { _ in
             if appState.autoReloadPreview {
                 updatePreview()
             }
         }
         // 파일 드래그 앤 드롭
-        .onDrop(of: supportedTypes, isTargeted: $isDropTargeted) { providers in
-            handleDrop(providers: providers)
+        .onDrop(of: [.fileURL], isTargeted: $isDropTargeted) { providers in
+            handleFileDrop(providers: providers)
         }
         .overlay(
             // 드롭 영역 하이라이트
@@ -95,59 +97,26 @@ struct ContentView: View {
     }
 
     private func updatePreview() {
-        htmlContent = markdownProcessor.convertToHTML(document.content)
+        htmlContent = markdownProcessor.convertToHTML(documentManager.content)
     }
 
     // MARK: - 파일 드롭 처리
-    private func handleDrop(providers: [NSItemProvider]) -> Bool {
+    private func handleFileDrop(providers: [NSItemProvider]) -> Bool {
         guard let provider = providers.first else { return false }
 
         // 파일 URL 로드
-        if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
-            provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, error in
-                guard error == nil,
-                      let data = item as? Data,
-                      let url = URL(dataRepresentation: data, relativeTo: nil) else {
-                    return
-                }
-
-                // 파일 읽기
-                if let content = try? String(contentsOf: url, encoding: .utf8) {
-                    DispatchQueue.main.async {
-                        document.content = content
-                        updatePreview()
-                    }
-                }
+        provider.loadObject(ofClass: URL.self) { url, error in
+            guard error == nil, let fileURL = url else {
+                print("드롭 오류: \(error?.localizedDescription ?? "알 수 없는 오류")")
+                return
             }
-            return true
-        }
 
-        // 텍스트 데이터 로드
-        for type in [UTType.markdown, UTType.plainText] {
-            if provider.hasItemConformingToTypeIdentifier(type.identifier) {
-                provider.loadItem(forTypeIdentifier: type.identifier, options: nil) { item, error in
-                    guard error == nil else { return }
-
-                    var content: String?
-
-                    if let data = item as? Data {
-                        content = String(data: data, encoding: .utf8)
-                    } else if let string = item as? String {
-                        content = string
-                    }
-
-                    if let content = content {
-                        DispatchQueue.main.async {
-                            document.content = content
-                            updatePreview()
-                        }
-                    }
-                }
-                return true
+            DispatchQueue.main.async {
+                documentManager.loadFile(from: fileURL)
+                updatePreview()
             }
         }
-
-        return false
+        return true
     }
 }
 
@@ -235,48 +204,6 @@ struct HTMLSourceView: View {
 }
 
 #Preview {
-    ContentView(document: .constant(MarkdownDocument(content: """
-    # Hello World
-
-    This is a **Markdown** preview with *italic* and ~~strikethrough~~.
-
-    ## Code Example
-
-    ```swift
-    let greeting = "Hello, World!"
-    print(greeting)
-    ```
-
-    ## Table
-
-    | Name | Age |
-    |------|-----|
-    | Alice | 25 |
-    | Bob | 30 |
-
-    ## List
-
-    - Item 1
-    - Item 2
-      - Nested item
-
-    ## Mermaid Diagram
-
-    ```mermaid
-    graph TD
-        A[Start] --> B{Decision}
-        B -->|Yes| C[OK]
-        B -->|No| D[Cancel]
-    ```
-
-    ## Math
-
-    Inline math: $E = mc^2$
-
-    Block math:
-
-    $$
-    \\int_{-\\infty}^{\\infty} e^{-x^2} dx = \\sqrt{\\pi}
-    $$
-    """)))
+    MainContentView()
+        .environmentObject(DocumentManager())
 }

@@ -7,6 +7,7 @@ import WebKit
 struct PreviewView: NSViewRepresentable {
     var htmlContent: String
     var theme: PreviewTheme
+    var scrollSyncManager: ScrollSyncManager?
 
     func makeNSView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
@@ -19,16 +20,29 @@ struct PreviewView: NSViewRepresentable {
         preferences.allowsContentJavaScript = true
         configuration.defaultWebpagePreferences = preferences
 
+        // 스크롤 이벤트를 Swift로 전달하기 위한 스크립트 메시지 핸들러
+        let userContentController = WKUserContentController()
+        userContentController.add(context.coordinator, name: "scrollHandler")
+        configuration.userContentController = userContentController
+
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = context.coordinator
 
         // 배경 투명 설정
         webView.setValue(false, forKey: "drawsBackground")
 
+        // 스크롤 동기화 매니저에 등록
+        scrollSyncManager?.previewWebView = webView
+        context.coordinator.scrollSyncManager = scrollSyncManager
+
         return webView
     }
 
     func updateNSView(_ webView: WKWebView, context: Context) {
+        // 스크롤 동기화 매니저 업데이트
+        scrollSyncManager?.previewWebView = webView
+        context.coordinator.scrollSyncManager = scrollSyncManager
+
         let fullHTML = wrapHTML(content: htmlContent, theme: theme)
         webView.loadHTMLString(fullHTML, baseURL: Bundle.main.resourceURL)
     }
@@ -61,44 +75,65 @@ struct PreviewView: NSViewRepresentable {
 
             <!-- Mermaid for diagrams -->
             <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
-            <script>
-                mermaid.initialize({
-                    startOnLoad: true,
-                    theme: '\(mermaidTheme)',
-                    securityLevel: 'loose'
-                });
-            </script>
+
+            <!-- Pako for PlantUML compression -->
+            <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
         </head>
         <body class="\(themeClass)">
             <div class="markdown-body">
                 \(content)
             </div>
             <script>
-                // 코드 하이라이팅
-                document.addEventListener('DOMContentLoaded', function() {
-                    document.querySelectorAll('pre code').forEach((block) => {
-                        hljs.highlightElement(block);
-                    });
+                // 모든 렌더링은 DOMContentLoaded 후에 수행
+                document.addEventListener('DOMContentLoaded', async function() {
+                    // 코드 하이라이팅
+                    if (typeof hljs !== 'undefined') {
+                        document.querySelectorAll('pre code').forEach((block) => {
+                            hljs.highlightElement(block);
+                        });
+                    }
+
+                    // Mermaid 다이어그램 렌더링
+                    if (typeof mermaid !== 'undefined') {
+                        try {
+                            mermaid.initialize({
+                                startOnLoad: false,
+                                theme: '\(mermaidTheme)',
+                                securityLevel: 'loose'
+                            });
+                            await mermaid.run({
+                                querySelector: '.mermaid'
+                            });
+                        } catch (e) {
+                            // Mermaid 렌더링 오류 무시
+                        }
+                    }
 
                     // KaTeX 수식 렌더링
-                    renderMathInElement(document.body, {
-                        delimiters: [
-                            {left: '$$', right: '$$', display: true},
-                            {left: '$', right: '$', display: false}
-                        ],
-                        throwOnError: false
-                    });
+                    if (typeof renderMathInElement !== 'undefined') {
+                        renderMathInElement(document.body, {
+                            delimiters: [
+                                {left: '$$', right: '$$', display: true},
+                                {left: '$', right: '$', display: false}
+                            ],
+                            throwOnError: false
+                        });
+                    }
 
-                    // PlantUML 다이어그램 처리
+                    // PlantUML 다이어그램 처리 (Kroki 서비스 사용 - 한글 지원)
                     document.querySelectorAll('.plantuml').forEach(async (element) => {
                         const code = element.getAttribute('data-code');
                         if (code) {
                             try {
-                                const encoded = plantumlEncode(code.replace(/&#10;/g, '\\n'));
+                                // Kroki 서비스용 인코딩 (URL-safe base64)
+                                const encoded = krokiEncode(code);
                                 const img = document.createElement('img');
-                                img.src = 'https://www.plantuml.com/plantuml/svg/' + encoded;
+                                img.src = 'https://kroki.io/plantuml/svg/' + encoded;
                                 img.alt = 'PlantUML Diagram';
                                 img.style.maxWidth = '100%';
+                                img.onerror = function() {
+                                    element.innerHTML = '<div class="diagram-error">PlantUML 렌더링 실패</div>';
+                                };
                                 element.innerHTML = '';
                                 element.appendChild(img);
                             } catch (e) {
@@ -108,57 +143,40 @@ struct PreviewView: NSViewRepresentable {
                     });
                 });
 
-                // PlantUML 인코딩 함수
-                function plantumlEncode(text) {
-                    const encoded = unescape(encodeURIComponent(text));
-                    const compressed = deflate(encoded);
-                    return encode64(compressed);
-                }
-
-                function encode64(data) {
-                    let r = "";
-                    for (let i = 0; i < data.length; i += 3) {
-                        if (i + 2 == data.length) {
-                            r += append3bytes(data.charCodeAt(i), data.charCodeAt(i + 1), 0);
-                        } else if (i + 1 == data.length) {
-                            r += append3bytes(data.charCodeAt(i), 0, 0);
-                        } else {
-                            r += append3bytes(data.charCodeAt(i), data.charCodeAt(i + 1), data.charCodeAt(i + 2));
-                        }
+                // Kroki 인코딩 함수 (URL-safe base64 of deflated content)
+                function krokiEncode(text) {
+                    if (typeof pako !== 'undefined') {
+                        const data = new TextEncoder().encode(text);
+                        const compressed = pako.deflate(data, { level: 9 });
+                        // URL-safe base64 인코딩
+                        const base64 = btoa(String.fromCharCode.apply(null, compressed));
+                        return base64.replace(/[+]/g, '-').replace(/[/]/g, '_');
                     }
-                    return r;
+                    return btoa(text);
                 }
 
-                function append3bytes(b1, b2, b3) {
-                    const c1 = b1 >> 2;
-                    const c2 = ((b1 & 0x3) << 4) | (b2 >> 4);
-                    const c3 = ((b2 & 0xF) << 2) | (b3 >> 6);
-                    const c4 = b3 & 0x3F;
-                    let r = "";
-                    r += encode6bit(c1 & 0x3F);
-                    r += encode6bit(c2 & 0x3F);
-                    r += encode6bit(c3 & 0x3F);
-                    r += encode6bit(c4 & 0x3F);
-                    return r;
-                }
-
-                function encode6bit(b) {
-                    if (b < 10) return String.fromCharCode(48 + b);
-                    b -= 10;
-                    if (b < 26) return String.fromCharCode(65 + b);
-                    b -= 26;
-                    if (b < 26) return String.fromCharCode(97 + b);
-                    b -= 26;
-                    if (b == 0) return '-';
-                    if (b == 1) return '_';
-                    return '?';
-                }
-
-                function deflate(s) {
-                    // 간단한 Raw deflate (PlantUML 텍스트 인코딩용)
-                    // 실제로는 pako 등의 라이브러리 사용 권장
-                    return s; // 간소화된 버전
-                }
+                // 스크롤 동기화를 위한 스크롤 이벤트 핸들러
+                let scrollPending = false;
+                let lastScrollPercent = -1;
+                window.addEventListener('scroll', function() {
+                    if (scrollPending) return;
+                    scrollPending = true;
+                    requestAnimationFrame(function() {
+                        var height = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
+                        var scrollableHeight = height - window.innerHeight;
+                        if (scrollableHeight > 0) {
+                            var scrollPercent = window.scrollY / scrollableHeight;
+                            // 변화가 있을 때만 전송
+                            if (Math.abs(scrollPercent - lastScrollPercent) > 0.001) {
+                                lastScrollPercent = scrollPercent;
+                                if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.scrollHandler) {
+                                    window.webkit.messageHandlers.scrollHandler.postMessage(scrollPercent);
+                                }
+                            }
+                        }
+                        scrollPending = false;
+                    });
+                }, { passive: true });
             </script>
         </body>
         </html>
@@ -175,8 +193,9 @@ struct PreviewView: NSViewRepresentable {
     }
 
     // MARK: - Coordinator
-    class Coordinator: NSObject, WKNavigationDelegate {
+    class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
         var parent: PreviewView
+        var scrollSyncManager: ScrollSyncManager?
 
         init(_ parent: PreviewView) {
             self.parent = parent
@@ -191,6 +210,14 @@ struct PreviewView: NSViewRepresentable {
                 return
             }
             decisionHandler(.allow)
+        }
+
+        // JavaScript에서 스크롤 이벤트 수신
+        func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+            if message.name == "scrollHandler",
+               let scrollPercent = message.body as? Double {
+                scrollSyncManager?.previewDidScroll(scrollPercent: scrollPercent)
+            }
         }
     }
 }
@@ -284,6 +311,14 @@ mark { background-color: #806d00; color: #ffffff; padding: 0.1em 0.3em; border-r
 .math-block { text-align: center; margin: 16px 0; overflow-x: auto; }
 
 .footnote { font-size: 0.875em; color: #808080; border-top: 1px solid var(--hr-color); padding-top: 16px; margin-top: 32px; }
+
+/* 체크박스 리스트 스타일 */
+li:has(input[type="checkbox"]) { list-style-type: none; margin-left: -1.2em; }
+li input[type="checkbox"] { margin-right: 8px; }
+
+/* 순서 있는 리스트 */
+ol { list-style-type: decimal; }
+ol li { list-style-type: decimal; }
 """
 
 private let lightThemeCSS = """
@@ -374,4 +409,12 @@ mark { background-color: #fff3cd; color: #24292e; padding: 0.1em 0.3em; border-r
 .math-block { text-align: center; margin: 16px 0; overflow-x: auto; }
 
 .footnote { font-size: 0.875em; color: #6a737d; border-top: 1px solid var(--hr-color); padding-top: 16px; margin-top: 32px; }
+
+/* 체크박스 리스트 스타일 */
+li:has(input[type="checkbox"]) { list-style-type: none; margin-left: -1.2em; }
+li input[type="checkbox"] { margin-right: 8px; }
+
+/* 순서 있는 리스트 */
+ol { list-style-type: decimal; }
+ol li { list-style-type: decimal; }
 """

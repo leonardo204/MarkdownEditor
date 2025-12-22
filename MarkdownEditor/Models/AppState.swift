@@ -10,7 +10,6 @@ class AppState: ObservableObject {
     @Published var previewTheme: PreviewTheme = .dark
 
     // MARK: - 미리보기 설정
-    @Published var previewMode: PreviewMode = .preview
     @Published var autoReloadPreview: Bool = true
 
     // MARK: - 에디터 설정
@@ -37,11 +36,6 @@ class AppState: ObservableObject {
             previewTheme = theme
         }
 
-        if let rawValue = defaults.string(forKey: "previewMode"),
-           let mode = PreviewMode(rawValue: rawValue) {
-            previewMode = mode
-        }
-
         autoReloadPreview = defaults.object(forKey: "autoReloadPreview") as? Bool ?? true
         showLineNumbers = defaults.object(forKey: "showLineNumbers") as? Bool ?? true
 
@@ -56,7 +50,6 @@ class AppState: ObservableObject {
         let defaults = UserDefaults.standard
         defaults.set(editorTheme.rawValue, forKey: "editorTheme")
         defaults.set(previewTheme.rawValue, forKey: "previewTheme")
-        defaults.set(previewMode.rawValue, forKey: "previewMode")
         defaults.set(autoReloadPreview, forKey: "autoReloadPreview")
         defaults.set(showLineNumbers, forKey: "showLineNumbers")
         defaults.set(Float(fontSize), forKey: "fontSize")
@@ -76,38 +69,111 @@ enum EditorTheme: String, CaseIterable {
         }
     }
 
+    // MARK: - 기본 색상
     var backgroundColor: NSColor {
         switch self {
-        case .dark: return NSColor(red: 0.157, green: 0.173, blue: 0.204, alpha: 1.0)  // #282C34
-        case .light: return NSColor(red: 0.980, green: 0.980, blue: 0.980, alpha: 1.0) // #FAFAFA
+        case .dark: return NSColor(red: 0.118, green: 0.125, blue: 0.157, alpha: 1.0)  // #1E2028 - 더 진한 다크
+        case .light: return NSColor(red: 0.988, green: 0.988, blue: 0.992, alpha: 1.0) // #FCFCFD
         }
     }
 
     var textColor: NSColor {
         switch self {
-        case .dark: return NSColor(red: 0.671, green: 0.698, blue: 0.749, alpha: 1.0)  // #ABB2BF
-        case .light: return NSColor(red: 0.220, green: 0.227, blue: 0.259, alpha: 1.0) // #383A42
+        case .dark: return NSColor(red: 0.847, green: 0.871, blue: 0.914, alpha: 1.0)  // #D8DEE9 - 더 밝은 텍스트
+        case .light: return NSColor(red: 0.180, green: 0.204, blue: 0.251, alpha: 1.0) // #2E3440
         }
     }
 
     var cursorColor: NSColor {
         switch self {
-        case .dark: return NSColor(red: 0.380, green: 0.612, blue: 0.937, alpha: 1.0)  // #619CD6
-        case .light: return NSColor(red: 0.251, green: 0.471, blue: 0.949, alpha: 1.0) // #4078F2
+        case .dark: return NSColor(red: 0.533, green: 0.753, blue: 0.984, alpha: 1.0)  // #88C0FB
+        case .light: return NSColor(red: 0.302, green: 0.537, blue: 0.890, alpha: 1.0) // #4D89E3
         }
     }
 
     var selectionColor: NSColor {
         switch self {
-        case .dark: return NSColor(red: 0.263, green: 0.298, blue: 0.369, alpha: 1.0)  // #434C5E
-        case .light: return NSColor(red: 0.827, green: 0.882, blue: 0.976, alpha: 1.0) // #D3E1F9
+        case .dark: return NSColor(red: 0.263, green: 0.298, blue: 0.369, alpha: 0.6)  // #434C5E with alpha
+        case .light: return NSColor(red: 0.737, green: 0.839, blue: 0.976, alpha: 0.5) // #BCD6F9 with alpha
         }
     }
 
+    // MARK: - 라인 번호 영역 (Gutter)
     var lineNumberColor: NSColor {
         switch self {
-        case .dark: return NSColor(red: 0.361, green: 0.388, blue: 0.443, alpha: 1.0)  // #5C6370
-        case .light: return NSColor(red: 0.627, green: 0.631, blue: 0.655, alpha: 1.0) // #A0A1A7
+        case .dark: return NSColor(red: 0.431, green: 0.459, blue: 0.525, alpha: 1.0)  // #6E7586
+        case .light: return NSColor(red: 0.553, green: 0.576, blue: 0.616, alpha: 1.0) // #8D939D
+        }
+    }
+
+    var gutterBackgroundColor: NSColor {
+        switch self {
+        case .dark: return NSColor(red: 0.098, green: 0.106, blue: 0.133, alpha: 1.0)  // #191B22 - 약간 더 어둡게
+        case .light: return NSColor(red: 0.957, green: 0.961, blue: 0.969, alpha: 1.0) // #F4F5F7
+        }
+    }
+
+    var gutterBorderColor: NSColor {
+        switch self {
+        case .dark: return NSColor(red: 0.200, green: 0.216, blue: 0.263, alpha: 1.0)  // #333743
+        case .light: return NSColor(red: 0.875, green: 0.886, blue: 0.906, alpha: 1.0) // #DFE2E7
+        }
+    }
+
+    // MARK: - 구문 강조 색상
+    var syntaxHeadingColor: NSColor {
+        switch self {
+        case .dark: return NSColor(red: 0.537, green: 0.706, blue: 0.980, alpha: 1.0)  // #89B4FA - 파랑
+        case .light: return NSColor(red: 0.118, green: 0.443, blue: 0.812, alpha: 1.0) // #1E71CF
+        }
+    }
+
+    var syntaxBoldColor: NSColor {
+        switch self {
+        case .dark: return NSColor(red: 0.976, green: 0.659, blue: 0.455, alpha: 1.0)  // #F9A874 - 오렌지
+        case .light: return NSColor(red: 0.804, green: 0.400, blue: 0.000, alpha: 1.0) // #CD6600
+        }
+    }
+
+    var syntaxItalicColor: NSColor {
+        switch self {
+        case .dark: return NSColor(red: 0.796, green: 0.616, blue: 0.882, alpha: 1.0)  // #CB9DE1 - 보라
+        case .light: return NSColor(red: 0.635, green: 0.286, blue: 0.643, alpha: 1.0) // #A249A4
+        }
+    }
+
+    var syntaxCodeColor: NSColor {
+        switch self {
+        case .dark: return NSColor(red: 0.651, green: 0.890, blue: 0.631, alpha: 1.0)  // #A6E3A1 - 초록
+        case .light: return NSColor(red: 0.251, green: 0.627, blue: 0.345, alpha: 1.0) // #40A058
+        }
+    }
+
+    var syntaxLinkColor: NSColor {
+        switch self {
+        case .dark: return NSColor(red: 0.529, green: 0.859, blue: 0.922, alpha: 1.0)  // #87DBEB - 시안
+        case .light: return NSColor(red: 0.000, green: 0.529, blue: 0.667, alpha: 1.0) // #0087AA
+        }
+    }
+
+    var syntaxQuoteColor: NSColor {
+        switch self {
+        case .dark: return NSColor(red: 0.545, green: 0.580, blue: 0.659, alpha: 1.0)  // #8B94A8
+        case .light: return NSColor(red: 0.486, green: 0.510, blue: 0.576, alpha: 1.0) // #7C8293
+        }
+    }
+
+    var syntaxListColor: NSColor {
+        switch self {
+        case .dark: return NSColor(red: 0.949, green: 0.549, blue: 0.584, alpha: 1.0)  // #F28C95 - 빨강
+        case .light: return NSColor(red: 0.851, green: 0.318, blue: 0.275, alpha: 1.0) // #D95146
+        }
+    }
+
+    var syntaxHrColor: NSColor {
+        switch self {
+        case .dark: return NSColor(red: 0.451, green: 0.475, blue: 0.545, alpha: 1.0)  // #73798B
+        case .light: return NSColor(red: 0.596, green: 0.616, blue: 0.663, alpha: 1.0) // #989DA9
         }
     }
 }
@@ -132,15 +198,3 @@ enum PreviewTheme: String, CaseIterable {
     }
 }
 
-// MARK: - 미리보기 모드
-enum PreviewMode: String, CaseIterable {
-    case preview
-    case html
-
-    var displayName: String {
-        switch self {
-        case .preview: return "Preview"
-        case .html: return "HTML"
-        }
-    }
-}

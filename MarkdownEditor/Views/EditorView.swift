@@ -1,43 +1,9 @@
 import SwiftUI
 import AppKit
 
-// NSTextView를 래핑한 Markdown 에디터 뷰
+// NSTextView를 래핑한 Markdown 에디터 뷰 (레거시)
 // 라인 번호, 구문 강조를 지원합니다.
-
-// MARK: - 에디터 액션 핸들러
-class EditorActionHandler: ObservableObject {
-    weak var textView: NSTextView?
-
-    func performAction(_ action: MarkdownAction) {
-        guard let textView = textView else { return }
-
-        let selectedRange = textView.selectedRange()
-        let selectedText = (textView.string as NSString).substring(with: selectedRange)
-
-        var newText: String
-
-        if action.wrapsSelection && !selectedText.isEmpty {
-            // 선택된 텍스트를 래핑
-            newText = action.prefix + selectedText + action.suffix
-        } else if action.wrapsSelection {
-            // 기본 텍스트로 래핑
-            newText = action.prefix + action.defaultText + action.suffix
-        } else {
-            // 단순 삽입
-            newText = action.prefix + action.defaultText
-        }
-
-        // Undo 지원을 위해 insertText 사용
-        textView.insertText(newText, replacementRange: selectedRange)
-
-        // 커서 위치 조정 (래핑된 경우 기본 텍스트 선택)
-        if action.wrapsSelection && selectedText.isEmpty {
-            let newSelectionStart = selectedRange.location + action.prefix.count
-            let newSelectionLength = action.defaultText.count
-            textView.setSelectedRange(NSRange(location: newSelectionStart, length: newSelectionLength))
-        }
-    }
-}
+// 참고: SimpleEditorView를 대신 사용하세요
 
 struct EditorView: NSViewRepresentable {
     @Binding var content: String
@@ -46,7 +12,6 @@ struct EditorView: NSViewRepresentable {
     var showLineNumbers: Bool
     var onTextChange: ((String) -> Void)?
     var onFileDrop: ((URL) -> Void)?
-    var actionHandler: EditorActionHandler?
 
     func makeNSView(context: Context) -> NSScrollView {
         let scrollView = NSScrollView()
@@ -106,14 +71,16 @@ struct EditorView: NSViewRepresentable {
         textView.string = content
         applyTheme(to: textView, theme: theme, fontSize: fontSize)
 
-        // 액션 핸들러 연결
-        actionHandler?.textView = textView
-
         return scrollView
     }
 
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         guard let textView = scrollView.documentView as? MarkdownTextView else { return }
+
+        // 텍스트 뷰 크기를 스크롤 뷰에 맞게 조정
+        let contentSize = scrollView.contentSize
+        textView.frame = NSRect(origin: .zero, size: contentSize)
+        textView.textContainer?.containerSize = NSSize(width: contentSize.width, height: CGFloat.greatestFiniteMagnitude)
 
         // 내용 업데이트 (변경된 경우에만)
         if textView.string != content {
@@ -131,6 +98,9 @@ struct EditorView: NSViewRepresentable {
 
         // 구문 강조 적용
         context.coordinator.applySyntaxHighlighting(to: textView, theme: theme)
+
+        // 파일 드롭 핸들러 업데이트
+        textView.onFileDrop = onFileDrop
     }
 
     func makeCoordinator() -> Coordinator {

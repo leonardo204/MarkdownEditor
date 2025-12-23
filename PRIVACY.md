@@ -1,6 +1,6 @@
 # 개인정보 처리방침
 
-**최종 수정일: 2024년 12월 23일**
+**최종 수정일: 2025년 12월 23일**
 
 ## 개요
 
@@ -50,7 +50,7 @@ MarkdownEditor(이하 "앱")는 사용자의 개인정보를 소중히 여기며
 
 # Privacy Policy
 
-**Last Updated: December 23, 2024**
+**Last Updated: December 23, 2025**
 
 ## Overview
 

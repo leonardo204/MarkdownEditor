@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 77;
+	objectVersion = 63;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -206,12 +206,6 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1500;
-				TargetAttributes = {
-					3CA2139426DA226DCC0051C8 = {
-						DevelopmentTeam = XU8HS9JUTS;
-						ProvisioningStyle = Manual;
-					};
-				};
 			};
 			buildConfigurationList = 1BF5A9A4AD592EB950441F7F /* Build configuration list for PBXProject "MarkdownEditor" */;
 			compatibilityVersion = "Xcode 14.0";
@@ -223,7 +217,6 @@
 			);
 			mainGroup = 6D97F1538DA47CE3779EADC7;
 			minimizedProjectReferenceProxies = 1;
-			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -438,10 +431,11 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_IDENTITY = "Developer ID Application";
-				CODE_SIGN_STYLE = Manual;
+				CODE_SIGN_ENTITLEMENTS = MarkdownEditor/MarkdownEditor.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = XU8HS9JUTS;
 				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = MarkdownEditor/Info.plist;
@@ -453,6 +447,7 @@
 				MARKETING_VERSION = 1.0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.zerolive.MarkdownEditor;
 				PRODUCT_NAME = MarkdownEditor;
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = macosx;
 				SWIFT_VERSION = 5.9;
 			};
@@ -462,10 +457,11 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_IDENTITY = "Developer ID Application";
-				CODE_SIGN_STYLE = Manual;
+				CODE_SIGN_ENTITLEMENTS = MarkdownEditor/MarkdownEditor.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = XU8HS9JUTS;
 				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = MarkdownEditor/Info.plist;
@@ -477,6 +473,7 @@
 				MARKETING_VERSION = 1.0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.zerolive.MarkdownEditor;
 				PRODUCT_NAME = MarkdownEditor;
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = macosx;
 				SWIFT_VERSION = 5.9;
 			};

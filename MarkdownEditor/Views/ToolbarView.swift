@@ -18,7 +18,7 @@ struct ToolbarView: View {
                 Button("Heading 5") { onAction(.heading(5)) }
                 Button("Heading 6") { onAction(.heading(6)) }
             } label: {
-                ToolbarButton(icon: "number", tooltip: "Heading")
+                ToolbarMenuLabel(icon: "number", tooltip: "제목 (Heading)")
             }
 
             Divider()
@@ -26,16 +26,16 @@ struct ToolbarView: View {
                 .padding(.horizontal, 4)
 
             // 텍스트 스타일
-            ToolbarButton(icon: "bold", tooltip: "Bold") {
+            ToolbarButton(icon: "bold", tooltip: "굵게 (Bold) ⌘B") {
                 onAction(.bold)
             }
-            ToolbarButton(icon: "italic", tooltip: "Italic") {
+            ToolbarButton(icon: "italic", tooltip: "기울임 (Italic) ⌘I") {
                 onAction(.italic)
             }
-            ToolbarButton(icon: "strikethrough", tooltip: "Strikethrough") {
+            ToolbarButton(icon: "strikethrough", tooltip: "취소선 (Strikethrough)") {
                 onAction(.strikethrough)
             }
-            ToolbarButton(icon: "highlighter", tooltip: "Highlight") {
+            ToolbarButton(icon: "highlighter", tooltip: "하이라이트 (Highlight)") {
                 onAction(.highlight)
             }
 
@@ -44,10 +44,10 @@ struct ToolbarView: View {
                 .padding(.horizontal, 4)
 
             // 코드
-            ToolbarButton(icon: "chevron.left.forwardslash.chevron.right", tooltip: "Inline Code") {
+            ToolbarButton(icon: "chevron.left.forwardslash.chevron.right", tooltip: "인라인 코드 (Inline Code)") {
                 onAction(.inlineCode)
             }
-            ToolbarButton(icon: "rectangle.and.text.magnifyingglass", tooltip: "Code Block") {
+            ToolbarButton(icon: "rectangle.and.text.magnifyingglass", tooltip: "코드 블록 (Code Block)") {
                 onAction(.codeBlock)
             }
 
@@ -56,10 +56,10 @@ struct ToolbarView: View {
                 .padding(.horizontal, 4)
 
             // 링크 및 이미지
-            ToolbarButton(icon: "link", tooltip: "Link") {
+            ToolbarButton(icon: "link", tooltip: "링크 (Link) ⌘K") {
                 onAction(.link)
             }
-            ToolbarButton(icon: "photo", tooltip: "Image") {
+            ToolbarButton(icon: "photo", tooltip: "이미지 (Image)") {
                 onAction(.image)
             }
 
@@ -68,13 +68,13 @@ struct ToolbarView: View {
                 .padding(.horizontal, 4)
 
             // 리스트
-            ToolbarButton(icon: "list.bullet", tooltip: "Bullet List") {
+            ToolbarButton(icon: "list.bullet", tooltip: "불릿 리스트 (Bullet List)") {
                 onAction(.bulletList)
             }
-            ToolbarButton(icon: "list.number", tooltip: "Numbered List") {
+            ToolbarButton(icon: "list.number", tooltip: "번호 리스트 (Numbered List)") {
                 onAction(.numberedList)
             }
-            ToolbarButton(icon: "checklist", tooltip: "Task List") {
+            ToolbarButton(icon: "checklist", tooltip: "체크리스트 (Task List)") {
                 onAction(.taskList)
             }
 
@@ -83,10 +83,10 @@ struct ToolbarView: View {
                 .padding(.horizontal, 4)
 
             // 인용 및 수평선
-            ToolbarButton(icon: "text.quote", tooltip: "Blockquote") {
+            ToolbarButton(icon: "text.quote", tooltip: "인용구 (Blockquote)") {
                 onAction(.blockquote)
             }
-            ToolbarButton(icon: "minus", tooltip: "Horizontal Rule") {
+            ToolbarButton(icon: "minus", tooltip: "수평선 (Horizontal Rule)") {
                 onAction(.horizontalRule)
             }
 
@@ -105,18 +105,18 @@ struct ToolbarView: View {
 
             // 다이어그램
             Menu {
-                Button("Mermaid Diagram") { onAction(.mermaid) }
-                Button("PlantUML Diagram") { onAction(.plantuml) }
+                Button("Mermaid 다이어그램") { onAction(.mermaid) }
+                Button("PlantUML 다이어그램") { onAction(.plantuml) }
             } label: {
-                ToolbarButton(icon: "chart.bar.doc.horizontal", tooltip: "Diagram")
+                ToolbarMenuLabel(icon: "chart.bar.doc.horizontal", tooltip: "다이어그램 (Diagram)")
             }
 
             // 수식
             Menu {
-                Button("Inline Math") { onAction(.inlineMath) }
-                Button("Block Math") { onAction(.blockMath) }
+                Button("인라인 수식") { onAction(.inlineMath) }
+                Button("블록 수식") { onAction(.blockMath) }
             } label: {
-                ToolbarButton(icon: "function", tooltip: "Math")
+                ToolbarMenuLabel(icon: "function", tooltip: "수식 (Math)")
             }
 
             Spacer()
@@ -145,7 +145,7 @@ struct TableSelectorButton: View {
                 .frame(width: 28, height: 24)
         }
         .buttonStyle(.plain)
-        .help("Table")
+        .background(TooltipWrapper(tooltip: "테이블 (Table)"))
         .popover(isPresented: $isPresented, arrowEdge: .bottom) {
             VStack(alignment: .leading, spacing: 8) {
                 // 크기 표시
@@ -194,7 +194,7 @@ struct TableSelectorButton: View {
     }
 }
 
-// MARK: - 툴바 버튼
+// MARK: - 툴바 버튼 (네이티브 툴팁)
 struct ToolbarButton: View {
     let icon: String
     let tooltip: String
@@ -207,7 +207,6 @@ struct ToolbarButton: View {
                 .frame(width: 28, height: 24)
         }
         .buttonStyle(.plain)
-        .help(tooltip)
         .contentShape(Rectangle())
         .onHover { hovering in
             if hovering {
@@ -216,6 +215,35 @@ struct ToolbarButton: View {
                 NSCursor.pop()
             }
         }
+        .background(TooltipWrapper(tooltip: tooltip))
+    }
+}
+
+// MARK: - 툴바 메뉴 레이블 (Menu의 label로 사용)
+struct ToolbarMenuLabel: View {
+    let icon: String
+    var tooltip: String = ""
+
+    var body: some View {
+        Image(systemName: icon)
+            .font(.system(size: 13))
+            .frame(width: 28, height: 24)
+            .background(TooltipWrapper(tooltip: tooltip))
+    }
+}
+
+// MARK: - NSView 기반 네이티브 툴팁
+struct TooltipWrapper: NSViewRepresentable {
+    let tooltip: String
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        view.toolTip = tooltip
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        nsView.toolTip = tooltip
     }
 }
 

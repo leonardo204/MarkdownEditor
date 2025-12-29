@@ -16,7 +16,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.zerolive.MarkdownEditor
         PRODUCT_NAME: MarkdownEditor
-        MARKETING_VERSION: "1.0.0"
+        MARKETING_VERSION: "1.0.1"
         CURRENT_PROJECT_VERSION: "1"
         INFOPLIST_FILE: MarkdownEditor/Info.plist
         CODE_SIGN_STYLE: Manual

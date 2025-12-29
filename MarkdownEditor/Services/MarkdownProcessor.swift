@@ -216,110 +216,121 @@ class MarkdownProcessor {
         )
     }
 
-    // MARK: - 리스트 변환
+    // MARK: - 리스트 변환 (중첩 리스트 지원)
     private func convertLists(_ text: String) -> String {
-        var result = text
-
-        // 체크박스 리스트 (data-type="task")
-        let taskPattern = "^(\\s*)[-*+]\\s+\\[([ xX])\\]\\s+(.*)$"
-        if let regex = try? NSRegularExpression(pattern: taskPattern, options: [.anchorsMatchLines]) {
-            result = regex.stringByReplacingMatches(
-                in: result,
-                range: NSRange(result.startIndex..., in: result),
-                withTemplate: "<li data-type=\"task\"><input type=\"checkbox\" disabled$2> $3</li>"
-            )
-            // 체크 표시 처리
-            result = result.replacingOccurrences(of: "disabled ", with: "disabled ")
-            result = result.replacingOccurrences(of: "disabledx", with: "disabled checked")
-            result = result.replacingOccurrences(of: "disabledX", with: "disabled checked")
-        }
-
-        // 순서 있는 리스트 (data-type="ordered") - 불릿보다 먼저 처리
-        let olPattern = "^(\\s*)\\d+\\.\\s+(.*)$"
-        if let regex = try? NSRegularExpression(pattern: olPattern, options: [.anchorsMatchLines]) {
-            result = regex.stringByReplacingMatches(
-                in: result,
-                range: NSRange(result.startIndex..., in: result),
-                withTemplate: "<li data-type=\"ordered\">$2</li>"
-            )
-        }
-
-        // 순서 없는 리스트 (data-type="bullet")
-        let ulPattern = "^(\\s*)[-*+]\\s+(.*)$"
-        if let regex = try? NSRegularExpression(pattern: ulPattern, options: [.anchorsMatchLines]) {
-            result = regex.stringByReplacingMatches(
-                in: result,
-                range: NSRange(result.startIndex..., in: result),
-                withTemplate: "<li data-type=\"bullet\">$2</li>"
-            )
-        }
-
-        // 연속된 <li> 태그를 <ul> 또는 <ol>로 래핑
-        result = wrapListItems(result)
-
-        return result
-    }
-
-    private func wrapListItems(_ text: String) -> String {
         let lines = text.components(separatedBy: "\n")
         var result: [String] = []
-        var currentListType: String? = nil  // "ordered", "bullet", "task"
+        // 스택: (type, indent) - 각 레벨의 리스트 타입과 들여쓰기
+        var listStack: [(type: String, indent: Int)] = []
 
         for line in lines {
-            if line.hasPrefix("<li") {
-                // 리스트 타입 감지
-                var listType = "bullet"
-                if line.contains("data-type=\"ordered\"") {
-                    listType = "ordered"
-                } else if line.contains("data-type=\"task\"") {
-                    listType = "task"
-                } else if line.contains("data-type=\"bullet\"") {
-                    listType = "bullet"
+            // 리스트 아이템 파싱
+            if let listItem = parseListItem(line) {
+                let indent = listItem.indent
+                let type = listItem.type
+                let content = listItem.content
+
+                // 현재 들여쓰기 레벨 계산 (2칸 = 1레벨)
+                let indentLevel = indent / 2
+
+                // 스택 조정: 현재 레벨보다 깊은 리스트들 닫기
+                while let last = listStack.last, last.indent > indentLevel {
+                    result.append("</li>")
+                    let closeTag = last.type == "ordered" ? "</ol>" : "</ul>"
+                    result.append(closeTag)
+                    listStack.removeLast()
                 }
 
-                // 새로운 리스트 시작 또는 타입 변경
-                if currentListType == nil {
-                    // 리스트 시작 전 빈 줄 추가
-                    if !result.isEmpty && result.last != "" {
-                        result.append("")
+                // 같은 레벨 처리
+                if let last = listStack.last, last.indent == indentLevel {
+                    if last.type != type {
+                        // 타입이 다르면 현재 리스트를 닫고 새로 시작
+                        result.append("</li>")
+                        let closeTag = last.type == "ordered" ? "</ol>" : "</ul>"
+                        result.append(closeTag)
+                        listStack.removeLast()
+                        // 새 리스트 열기
+                        let openTag = type == "ordered" ? "<ol>" : "<ul>"
+                        result.append(openTag)
+                        listStack.append((type: type, indent: indentLevel))
+                    } else {
+                        // 같은 타입: 이전 아이템 닫기
+                        result.append("</li>")
                     }
-                    let tag = listType == "ordered" ? "<ol>" : "<ul>"
-                    result.append(tag)
-                    currentListType = listType
-                } else if currentListType != listType {
-                    // 타입이 변경되면 현재 리스트 닫고 새로 시작
-                    let closeTag = currentListType == "ordered" ? "</ol>" : "</ul>"
-                    result.append(closeTag)
-                    result.append("")
-                    let openTag = listType == "ordered" ? "<ol>" : "<ul>"
-                    result.append(openTag)
-                    currentListType = listType
                 }
 
-                // data-type 속성 제거하고 추가
-                let cleanLine = line
-                    .replacingOccurrences(of: " data-type=\"ordered\"", with: "")
-                    .replacingOccurrences(of: " data-type=\"bullet\"", with: "")
-                    .replacingOccurrences(of: " data-type=\"task\"", with: "")
-                result.append(cleanLine)
+                // 새 리스트 시작이 필요한 경우 (더 깊은 레벨이거나 첫 시작)
+                if listStack.isEmpty || listStack.last!.indent < indentLevel {
+                    let openTag = type == "ordered" ? "<ol>" : "<ul>"
+                    result.append(openTag)
+                    listStack.append((type: type, indent: indentLevel))
+                }
+
+                // 리스트 아이템 추가 (닫지 않음 - 하위 리스트가 올 수 있음)
+                result.append("<li>\(content)")
             } else {
-                if currentListType != nil {
-                    let closeTag = currentListType == "ordered" ? "</ol>" : "</ul>"
+                // 리스트가 아닌 줄: 모든 열린 리스트 닫기
+                while let last = listStack.last {
+                    result.append("</li>")
+                    let closeTag = last.type == "ordered" ? "</ol>" : "</ul>"
                     result.append(closeTag)
-                    result.append("")
-                    currentListType = nil
+                    listStack.removeLast()
                 }
                 result.append(line)
             }
         }
 
-        // 마지막 리스트 닫기
-        if let listType = currentListType {
-            let closeTag = listType == "ordered" ? "</ol>" : "</ul>"
+        // 남은 리스트 닫기
+        while let last = listStack.last {
+            result.append("</li>")
+            let closeTag = last.type == "ordered" ? "</ol>" : "</ul>"
             result.append(closeTag)
+            listStack.removeLast()
         }
 
         return result.joined(separator: "\n")
+    }
+
+    // 리스트 아이템 파싱 결과
+    private struct ListItem {
+        let indent: Int       // 들여쓰기 칸 수
+        let type: String      // "bullet", "ordered", "task"
+        let content: String   // 내용
+    }
+
+    // 줄을 파싱하여 리스트 아이템인지 확인
+    private func parseListItem(_ line: String) -> ListItem? {
+        // 체크박스 리스트: "  - [ ] task" 또는 "  - [x] task"
+        let taskPattern = "^(\\s*)[-*+]\\s+\\[([ xX])\\]\\s+(.*)$"
+        if let regex = try? NSRegularExpression(pattern: taskPattern),
+           let match = regex.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)) {
+            let indent = Range(match.range(at: 1), in: line).map { line[$0].count } ?? 0
+            let checked = Range(match.range(at: 2), in: line).map { String(line[$0]) } ?? " "
+            let content = Range(match.range(at: 3), in: line).map { String(line[$0]) } ?? ""
+            let isChecked = checked.lowercased() == "x"
+            let checkbox = isChecked ? "<input type=\"checkbox\" disabled checked>" : "<input type=\"checkbox\" disabled>"
+            return ListItem(indent: indent, type: "bullet", content: "\(checkbox) \(content)")
+        }
+
+        // 순서 있는 리스트: "  1. item"
+        let orderedPattern = "^(\\s*)\\d+\\.\\s+(.*)$"
+        if let regex = try? NSRegularExpression(pattern: orderedPattern),
+           let match = regex.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)) {
+            let indent = Range(match.range(at: 1), in: line).map { line[$0].count } ?? 0
+            let content = Range(match.range(at: 2), in: line).map { String(line[$0]) } ?? ""
+            return ListItem(indent: indent, type: "ordered", content: content)
+        }
+
+        // 순서 없는 리스트: "  - item" 또는 "  * item" 또는 "  + item"
+        let bulletPattern = "^(\\s*)[-*+]\\s+(.*)$"
+        if let regex = try? NSRegularExpression(pattern: bulletPattern),
+           let match = regex.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)) {
+            let indent = Range(match.range(at: 1), in: line).map { line[$0].count } ?? 0
+            let content = Range(match.range(at: 2), in: line).map { String(line[$0]) } ?? ""
+            return ListItem(indent: indent, type: "bullet", content: content)
+        }
+
+        return nil
     }
 
     // MARK: - 테이블 변환

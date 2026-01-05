@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import AppKit
 
 // 앱 전역 상태 관리
 // 테마, 설정 등을 관리합니다.
@@ -16,6 +17,9 @@ class AppState: ObservableObject {
     @Published var showLineNumbers: Bool = true
     @Published var fontSize: CGFloat = 14
     @Published var fontName: String = "SF Mono"
+
+    // MARK: - 탭 설정
+    @Published var openFilesInNewTab: Bool = true  // true: 새 탭, false: 새 윈도우
 
     // MARK: - 초기화
     init() {
@@ -43,6 +47,9 @@ class AppState: ObservableObject {
         fontSize = savedFontSize > 0 ? CGFloat(savedFontSize) : 14
 
         fontName = defaults.string(forKey: "fontName") ?? "SF Mono"
+
+        // 탭 설정 로드 (기본값: 새 탭에서 열기)
+        openFilesInNewTab = defaults.object(forKey: "openFilesInNewTab") as? Bool ?? true
     }
 
     // MARK: - 설정 저장
@@ -54,6 +61,7 @@ class AppState: ObservableObject {
         defaults.set(showLineNumbers, forKey: "showLineNumbers")
         defaults.set(Float(fontSize), forKey: "fontSize")
         defaults.set(fontName, forKey: "fontName")
+        defaults.set(openFilesInNewTab, forKey: "openFilesInNewTab")
     }
 }
 

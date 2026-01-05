@@ -9,6 +9,8 @@
 /* Begin PBXBuildFile section */
 		015AD3B4955E3561C5D1024A /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CAE6BA3D9B5447DADFF76CF /* AppState.swift */; };
 		0EA35FF78604BFA321D598CA /* MarkdownDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8C248FE483DBE9D113EFEB2 /* MarkdownDocument.swift */; };
+		TAB001BFAF62F00413E114665 /* TabManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = TAB001BFAF62F00413E114664 /* TabManager.swift */; };
+		TAB002BFAF62F00413E114665 /* TabBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = TAB002BFAF62F00413E114664 /* TabBarView.swift */; };
 		1FA64B912F0253A000947CB6 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1FA64B902F0253A000947CB6 /* Assets.xcassets */; };
 		3E486589278BDF8C46EBCB90 /* MarkdownEditorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 338049E96A635FBB0255D8C9 /* MarkdownEditorTests.swift */; };
 		44071A816C7DA46E51C4C5EE /* EditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74A050CE0D0294B0B6278F2B /* EditorView.swift */; };
@@ -52,6 +54,8 @@
 		A8C248FE483DBE9D113EFEB2 /* MarkdownDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownDocument.swift; sourceTree = "<group>"; };
 		B7B4206DF36D6DE5F8B6A115 /* MarkdownEditor.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MarkdownEditor.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BE95E5BBF83EADAD8BEE08B1 /* MarkdownProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownProcessor.swift; sourceTree = "<group>"; };
+		TAB001BFAF62F00413E114664 /* TabManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabManager.swift; sourceTree = "<group>"; };
+		TAB002BFAF62F00413E114664 /* TabBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabBarView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -145,6 +149,7 @@
 				371AD5E138DBC5FE6F19FFE8 /* PreviewView.swift */,
 				495CA61B8869CB463712583F /* SettingsView.swift */,
 				333A7F3D8C26C27C63EB5F62 /* SimpleEditorView.swift */,
+				TAB002BFAF62F00413E114664 /* TabBarView.swift */,
 				99BBFC134DD17A6E3FA5C9D5 /* ToolbarView.swift */,
 			);
 			path = Views;
@@ -155,6 +160,7 @@
 			children = (
 				5CAE6BA3D9B5447DADFF76CF /* AppState.swift */,
 				A8C248FE483DBE9D113EFEB2 /* MarkdownDocument.swift */,
+				TAB001BFAF62F00413E114664 /* TabManager.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -261,6 +267,8 @@
 				AD8CE50151D6505BAE5766B4 /* PreviewView.swift in Sources */,
 				A698EC87E1817BEB97D1788B /* SettingsView.swift in Sources */,
 				8983F0EC17AAC0EB79F1762B /* SimpleEditorView.swift in Sources */,
+				TAB001BFAF62F00413E114665 /* TabManager.swift in Sources */,
+				TAB002BFAF62F00413E114665 /* TabBarView.swift in Sources */,
 				B8DCFEFBDBB5CDBED45A3DAD /* ToolbarView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -436,7 +444,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = XU8HS9JUTS;
 				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = MarkdownEditor/Info.plist;
@@ -445,7 +453,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 1.0.1;
+				MARKETING_VERSION = 1.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.zerolive.MarkdownEditor;
 				PRODUCT_NAME = MarkdownEditor;
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -463,7 +471,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = XU8HS9JUTS;
 				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = MarkdownEditor/Info.plist;
@@ -472,7 +480,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 1.0.1;
+				MARKETING_VERSION = 1.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.zerolive.MarkdownEditor;
 				PRODUCT_NAME = MarkdownEditor;
 				PROVISIONING_PROFILE_SPECIFIER = "";

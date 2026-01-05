@@ -115,12 +115,12 @@ class ScrollSyncManager: ObservableObject {
     }
 }
 
-// 메인 콘텐츠 뷰
-// 에디터와 미리보기를 분할 화면으로 표시
+// MARK: - 메인 콘텐츠 뷰
+// 탭 바 + 에디터 + 미리보기
 
 struct MainContentView: View {
-    // 각 윈도우마다 독립적인 DocumentManager 생성
-    @StateObject private var documentManager = DocumentManager()
+    // 탭 관리자
+    @StateObject private var tabManager = TabManager()
     @StateObject private var appState = AppState()
     @StateObject private var actionHandler = EditorActionHandler()
     @StateObject private var scrollSyncManager = ScrollSyncManager()
@@ -129,67 +129,43 @@ struct MainContentView: View {
 
     private let markdownProcessor = MarkdownProcessor()
 
+    // 현재 선택된 DocumentManager
+    private var currentDocumentManager: DocumentManager? {
+        tabManager.currentDocumentManager
+    }
+
     var body: some View {
-        HSplitView {
-            // 에디터 패널
-            VStack(spacing: 0) {
-                // 에디터 헤더
-                EditorHeader(theme: $appState.editorTheme)
-                    .fixedSize(horizontal: false, vertical: true)
+        VStack(spacing: 0) {
+            // 커스텀 탭 바
+            TabBarView(tabManager: tabManager) {
+                // 새 탭 추가
+                tabManager.addNewTab()
+            }
 
-                Divider()
-
-                // 툴바
-                ToolbarView { action in
-                    actionHandler.applyFormatting(action)
-                    updatePreview()
-                }
-                .fixedSize(horizontal: false, vertical: true)
-
-                Divider()
-
-                // 에디터 뷰 (SimpleEditorView 사용)
-                SimpleEditorView(
-                    content: $documentManager.content,
-                    theme: appState.editorTheme,
-                    fontSize: appState.fontSize,
-                    showLineNumbers: appState.showLineNumbers,
-                    onFileDrop: { fileURLs in
-                        handleFileDrop(fileURLs)
-                    },
+            // 에디터 + 미리보기
+            if let documentManager = currentDocumentManager {
+                EditorPreviewSplitView(
+                    documentManager: documentManager,
+                    appState: appState,
                     actionHandler: actionHandler,
+                    scrollSyncManager: scrollSyncManager,
+                    htmlContent: $htmlContent,
+                    onFileDrop: handleFileDrop,
                     onContentChange: { newContent in
                         documentManager.updateContent(newContent)
                         updatePreview()
-                    },
-                    scrollSyncManager: scrollSyncManager
+                    }
                 )
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                // 탭이 없는 경우 (일반적으로 발생하지 않음)
+                Text("No document")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .frame(minWidth: 300)
-
-            // 미리보기 패널
-            VStack(spacing: 0) {
-                // 미리보기 헤더
-                PreviewHeader(
-                    theme: $appState.previewTheme,
-                    autoReload: $appState.autoReloadPreview
-                )
-
-                Divider()
-
-                // 미리보기 뷰
-                PreviewView(
-                    htmlContent: htmlContent,
-                    theme: appState.previewTheme,
-                    scrollSyncManager: scrollSyncManager
-                )
-            }
-            .frame(minWidth: 300)
         }
         .frame(minWidth: 800, minHeight: 600)
-        .navigationTitle(documentManager.windowTitle + (documentManager.isModified ? " *" : ""))
-        .focusedSceneValue(\.documentManager, documentManager)
+        .navigationTitle(windowTitle)
+        .focusedSceneValue(\.documentManager, currentDocumentManager)
+        .focusedSceneValue(\.tabManager, tabManager)
         .onAppear {
             DebugLogger.shared.log("MainContentView.onAppear")
 
@@ -205,28 +181,39 @@ struct MainContentView: View {
             updatePreview()
         }
         .onDisappear {
-            // 타이머 정리
             pendingFileCheckTimer?.invalidate()
             pendingFileCheckTimer = nil
         }
-        .background(WindowAccessor(documentManager: documentManager))
-        .onChange(of: documentManager.content) { _ in
+        .background(WindowAccessor(tabManager: tabManager))
+        .onChange(of: tabManager.selectedTabIndex) { _ in
+            // 탭 변경 시 프리뷰 업데이트
+            updatePreview()
+        }
+        .onChange(of: currentDocumentManager?.content) { _ in
             if appState.autoReloadPreview {
                 updatePreview()
             }
         }
     }
 
+    // 윈도우 타이틀
+    private var windowTitle: String {
+        guard let dm = currentDocumentManager else { return "Untitled" }
+        return dm.windowTitle + (dm.isModified ? " *" : "")
+    }
+
     // pending 파일 로드 시도 (성공하면 true)
     private func tryLoadPendingFile() -> Bool {
+        guard let dm = currentDocumentManager else { return false }
+
         // 이미 파일이 열려있으면 스킵
-        guard documentManager.currentFileURL == nil && documentManager.content.isEmpty else {
+        guard dm.currentFileURL == nil && dm.content.isEmpty else {
             return false
         }
 
         if let pendingURL = FileOpenManager.shared.popPendingFile() {
             DebugLogger.shared.log("Loading pending file: \(pendingURL.lastPathComponent)")
-            documentManager.loadFile(from: pendingURL)
+            dm.loadFile(from: pendingURL)
             updatePreview()
             return true
         }
@@ -254,74 +241,133 @@ struct MainContentView: View {
     }
 
     private func updatePreview() {
-        htmlContent = markdownProcessor.convertToHTML(documentManager.content)
+        guard let dm = currentDocumentManager else {
+            htmlContent = ""
+            return
+        }
+        htmlContent = markdownProcessor.convertToHTML(dm.content)
     }
 
     // 드래그 앤 드롭 처리 (여러 파일 지원)
     private func handleFileDrop(_ fileURLs: [URL]) {
         guard !fileURLs.isEmpty else { return }
+        guard let dm = currentDocumentManager else { return }
 
-        var urlsToOpenInNewWindows: [URL] = []
+        let openInNewTab = UserDefaults.standard.object(forKey: "openFilesInNewTab") as? Bool ?? true
+        DebugLogger.shared.log("handleFileDrop: \(fileURLs.count) files, openInNewTab: \(openInNewTab)")
 
-        // 현재 창이 비어있으면 첫 번째 파일을 현재 창에서 열기
-        if documentManager.currentFileURL == nil && documentManager.content.isEmpty {
+        var urlsToOpen: [URL] = []
+
+        // 현재 탭이 비어있으면 첫 번째 파일을 현재 탭에서 열기
+        if dm.currentFileURL == nil && dm.content.isEmpty {
             // 첫 번째 파일이 이미 열려있는지 확인
-            if !WindowDocumentManagerRegistry.shared.bringToFrontIfAlreadyOpen(fileURLs[0], closeEmptyWindow: false) {
-                documentManager.loadFile(from: fileURLs[0])
+            if let existingIndex = tabManager.tabs.firstIndex(where: {
+                $0.documentManager.currentFileURL?.standardizedFileURL == fileURLs[0].standardizedFileURL
+            }) {
+                tabManager.selectTab(at: existingIndex)
+            } else {
+                dm.loadFile(from: fileURLs[0])
                 updatePreview()
             }
-            // 나머지 파일들은 새 창에서 열기
-            urlsToOpenInNewWindows = Array(fileURLs.dropFirst())
+            // 나머지 파일들
+            urlsToOpen = Array(fileURLs.dropFirst())
         } else {
-            // 수정 사항이 있으면 저장 확인
-            if documentManager.isModified {
-                if !documentManager.confirmSaveIfNeeded() {
-                    return  // 취소됨
-                }
-            }
-            // 모든 파일을 새 창에서 열기
-            urlsToOpenInNewWindows = fileURLs
+            // 현재 문서가 있으면 모든 파일을 새 탭에서 열기
+            urlsToOpen = fileURLs
         }
 
-        // 새 창에서 파일 열기 (중복 체크 후 pending에 추가)
-        var filesToOpen: [URL] = []
-        for fileURL in urlsToOpenInNewWindows {
-            // 이미 열린 파일이면 해당 창으로 이동
-            if !WindowDocumentManagerRegistry.shared.bringToFrontIfAlreadyOpen(fileURL) {
-                filesToOpen.append(fileURL)
-            }
-        }
-
-        // 파일들을 pending에 추가하고 순차적으로 창 열기
-        if !filesToOpen.isEmpty {
-            openFilesInNewWindows(filesToOpen)
-        }
-    }
-
-    // 여러 파일을 새 창에서 열기 (순차적으로)
-    private func openFilesInNewWindows(_ fileURLs: [URL]) {
-        guard !fileURLs.isEmpty else { return }
-
-        DebugLogger.shared.log("openFilesInNewWindows: \(fileURLs.count) files")
-
-        // 모든 파일을 pending에 추가
-        for url in fileURLs {
-            FileOpenManager.shared.addPendingFile(url, checkDuplicate: false)
-        }
-
-        // 순차적으로 창 열기 (각 창 사이에 딜레이)
-        for (index, _) in fileURLs.enumerated() {
-            DispatchQueue.main.asyncAfter(deadline: .now() + Double(index) * 0.1) {
-                DebugLogger.shared.log("Triggering new window \(index + 1)/\(fileURLs.count)")
+        // 새 탭에서 파일 열기
+        for url in urlsToOpen {
+            // 이미 열린 파일인지 확인
+            if let existingIndex = tabManager.tabs.firstIndex(where: {
+                $0.documentManager.currentFileURL?.standardizedFileURL == url.standardizedFileURL
+            }) {
+                tabManager.selectTab(at: existingIndex)
+            } else if openInNewTab {
+                // 새 탭에서 열기
+                tabManager.openFileInNewTab(url: url)
+            } else {
+                // 새 윈도우에서 열기
+                FileOpenManager.shared.addPendingFile(url, checkDuplicate: false)
                 NewWindowTrigger.shared.trigger()
             }
         }
     }
 }
 
-// MARK: - FocusedValue를 통해 현재 윈도우의 DocumentManager 접근
+// MARK: - 에디터 + 미리보기 분할 뷰
+struct EditorPreviewSplitView: View {
+    @ObservedObject var documentManager: DocumentManager
+    @ObservedObject var appState: AppState
+    @ObservedObject var actionHandler: EditorActionHandler
+    @ObservedObject var scrollSyncManager: ScrollSyncManager
+    @Binding var htmlContent: String
+    let onFileDrop: ([URL]) -> Void
+    let onContentChange: (String) -> Void
+
+    var body: some View {
+        HSplitView {
+            // 에디터 패널
+            VStack(spacing: 0) {
+                // 에디터 헤더
+                EditorHeader(theme: $appState.editorTheme)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Divider()
+
+                // 툴바
+                ToolbarView { action in
+                    actionHandler.applyFormatting(action)
+                    onContentChange(documentManager.content)
+                }
+                .fixedSize(horizontal: false, vertical: true)
+
+                Divider()
+
+                // 에디터 뷰
+                SimpleEditorView(
+                    content: $documentManager.content,
+                    theme: appState.editorTheme,
+                    fontSize: appState.fontSize,
+                    showLineNumbers: appState.showLineNumbers,
+                    onFileDrop: onFileDrop,
+                    actionHandler: actionHandler,
+                    onContentChange: onContentChange,
+                    scrollSyncManager: scrollSyncManager
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .frame(minWidth: 300)
+
+            // 미리보기 패널
+            VStack(spacing: 0) {
+                // 미리보기 헤더
+                PreviewHeader(
+                    theme: $appState.previewTheme,
+                    autoReload: $appState.autoReloadPreview
+                )
+
+                Divider()
+
+                // 미리보기 뷰
+                PreviewView(
+                    htmlContent: htmlContent,
+                    theme: appState.previewTheme,
+                    scrollSyncManager: scrollSyncManager
+                )
+            }
+            .frame(minWidth: 300)
+        }
+    }
+}
+
+// MARK: - FocusedValue를 통해 현재 윈도우의 DocumentManager/TabManager 접근
 struct DocumentManagerKey: FocusedValueKey {
     typealias Value = DocumentManager
+}
+
+struct TabManagerKey: FocusedValueKey {
+    typealias Value = TabManager
 }
 
 extension FocusedValues {
@@ -329,15 +375,20 @@ extension FocusedValues {
         get { self[DocumentManagerKey.self] }
         set { self[DocumentManagerKey.self] = newValue }
     }
+
+    var tabManager: TabManager? {
+        get { self[TabManagerKey.self] }
+        set { self[TabManagerKey.self] = newValue }
+    }
 }
 
 
-// MARK: - 윈도우 접근자 (DocumentManager를 윈도우에 등록 및 닫기 처리)
+// MARK: - 윈도우 접근자 (TabManager를 윈도우에 등록 및 닫기 처리)
 struct WindowAccessor: NSViewRepresentable {
-    let documentManager: DocumentManager
+    let tabManager: TabManager
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(documentManager: documentManager)
+        Coordinator(tabManager: tabManager)
     }
 
     func makeNSView(context: Context) -> NSView {
@@ -346,7 +397,7 @@ struct WindowAccessor: NSViewRepresentable {
         DispatchQueue.main.async {
             if let window = view.window {
                 DebugLogger.shared.log("WindowAccessor.makeNSView - Registering window")
-                WindowDocumentManagerRegistry.shared.register(documentManager, for: window)
+                WindowTabManagerRegistry.shared.register(tabManager, for: window)
                 // 윈도우 delegate 설정
                 context.coordinator.setupWindow(window)
             } else {
@@ -359,18 +410,18 @@ struct WindowAccessor: NSViewRepresentable {
     func updateNSView(_ nsView: NSView, context: Context) {
         DispatchQueue.main.async {
             if let window = nsView.window {
-                WindowDocumentManagerRegistry.shared.register(documentManager, for: window)
+                WindowTabManagerRegistry.shared.register(tabManager, for: window)
                 context.coordinator.setupWindow(window)
             }
         }
     }
 
     class Coordinator: NSObject, NSWindowDelegate {
-        let documentManager: DocumentManager
+        let tabManager: TabManager
         weak var window: NSWindow?
 
-        init(documentManager: DocumentManager) {
-            self.documentManager = documentManager
+        init(tabManager: TabManager) {
+            self.tabManager = tabManager
         }
 
         func setupWindow(_ window: NSWindow) {
@@ -380,36 +431,52 @@ struct WindowAccessor: NSViewRepresentable {
         }
 
         func windowShouldClose(_ sender: NSWindow) -> Bool {
-            guard documentManager.isModified else { return true }
-
-            let alert = NSAlert()
-            alert.messageText = "변경 사항을 저장하시겠습니까?"
-            alert.informativeText = "저장하지 않으면 변경 사항이 손실됩니다."
-            alert.alertStyle = .warning
-            alert.addButton(withTitle: "저장")
-            alert.addButton(withTitle: "저장 안 함")
-            alert.addButton(withTitle: "취소")
-
-            let response = alert.runModal()
-
-            switch response {
-            case .alertFirstButtonReturn:  // 저장
-                documentManager.saveDocument()
-                return true
-            case .alertSecondButtonReturn:  // 저장 안 함
-                return true
-            case .alertThirdButtonReturn:  // 취소
-                return false
-            default:
-                return false
-            }
+            // 모든 탭의 수정사항 확인
+            return tabManager.confirmSaveAllIfNeeded()
         }
 
         func windowWillClose(_ notification: Notification) {
             if let window = notification.object as? NSWindow {
-                WindowDocumentManagerRegistry.shared.unregister(for: window)
+                WindowTabManagerRegistry.shared.unregister(for: window)
             }
         }
+    }
+}
+
+// MARK: - 윈도우별 TabManager 레지스트리
+class WindowTabManagerRegistry {
+    static let shared = WindowTabManagerRegistry()
+    private var registry: [ObjectIdentifier: (window: NSWindow, manager: TabManager)] = [:]
+
+    func register(_ tabManager: TabManager, for window: NSWindow) {
+        registry[ObjectIdentifier(window)] = (window, tabManager)
+    }
+
+    func unregister(for window: NSWindow) {
+        registry.removeValue(forKey: ObjectIdentifier(window))
+    }
+
+    func tabManager(for window: NSWindow) -> TabManager? {
+        return registry[ObjectIdentifier(window)]?.manager
+    }
+
+    var allTabManagers: [TabManager] {
+        return registry.values.map { $0.manager }
+    }
+
+    // 파일이 이미 열려있는지 확인하고, 열려있으면 해당 탭으로 이동
+    func bringToFrontIfAlreadyOpen(_ fileURL: URL) -> Bool {
+        for (_, entry) in registry {
+            if let tabIndex = entry.manager.tabs.firstIndex(where: {
+                $0.documentManager.currentFileURL?.standardizedFileURL == fileURL.standardizedFileURL
+            }) {
+                entry.manager.selectTab(at: tabIndex)
+                entry.window.makeKeyAndOrderFront(nil)
+                NSApp.activate(ignoringOtherApps: true)
+                return true
+            }
+        }
+        return false
     }
 }
 
@@ -475,5 +542,4 @@ struct PreviewHeader: View {
 
 #Preview {
     MainContentView()
-        .environmentObject(DocumentManager())
 }

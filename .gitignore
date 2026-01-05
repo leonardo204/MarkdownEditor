@@ -63,10 +63,11 @@ logs/
 # Archives
 *.xcarchive
 
-# Images (except docs and assets)
+# Images (except docs, assets, and appstore)
 *.png
 !docs/images/*.png
 !**/Assets.xcassets/**/*.png
+!appstore/*.png
 
 # Test files
 playwright_mcp_documentation.md

@@ -157,15 +157,57 @@ class MarkdownProcessor {
         for level in (1...6).reversed() {
             let pattern = "^(\(String(repeating: "#", count: level)))\\s+(.+)$"
             if let regex = try? NSRegularExpression(pattern: pattern, options: [.anchorsMatchLines]) {
-                result = regex.stringByReplacingMatches(
-                    in: result,
-                    range: NSRange(result.startIndex..., in: result),
-                    withTemplate: "<h\(level)>$2</h\(level)>"
-                )
+                let nsResult = result as NSString
+                let matches = regex.matches(in: result, range: NSRange(location: 0, length: nsResult.length))
+
+                // 뒤에서부터 교체하여 인덱스 문제 방지
+                for match in matches.reversed() {
+                    guard let contentRange = Range(match.range(at: 2), in: result) else { continue }
+                    let content = String(result[contentRange])
+                    let id = generateHeadingId(from: content)
+                    let replacement = "<h\(level) id=\"\(id)\">\(content)</h\(level)>"
+
+                    if let fullRange = Range(match.range, in: result) {
+                        result = result.replacingCharacters(in: fullRange, with: replacement)
+                    }
+                }
             }
         }
 
         return result
+    }
+
+    // 헤딩 텍스트에서 앵커 ID 생성 (GFM 스타일)
+    private func generateHeadingId(from text: String) -> String {
+        var id = text.lowercased()
+
+        // HTML 태그 제거
+        if let regex = try? NSRegularExpression(pattern: "<[^>]+>", options: []) {
+            id = regex.stringByReplacingMatches(in: id, range: NSRange(id.startIndex..., in: id), withTemplate: "")
+        }
+
+        // 공백을 하이픈으로 대체
+        id = id.replacingOccurrences(of: " ", with: "-")
+
+        // 허용되지 않는 문자 제거 (알파벳, 숫자, 하이픈, 언더스코어, 한글, 일본어, 중국어 등 유지)
+        let allowedCharacters = CharacterSet.alphanumerics
+            .union(CharacterSet(charactersIn: "-_"))
+            .union(CharacterSet(charactersIn: "\u{AC00}"..."\u{D7A3}")) // 한글
+            .union(CharacterSet(charactersIn: "\u{3040}"..."\u{309F}")) // 히라가나
+            .union(CharacterSet(charactersIn: "\u{30A0}"..."\u{30FF}")) // 카타카나
+            .union(CharacterSet(charactersIn: "\u{4E00}"..."\u{9FFF}")) // CJK 통합 한자
+
+        id = id.unicodeScalars.filter { allowedCharacters.contains($0) }.map { String($0) }.joined()
+
+        // 연속된 하이픈 정리
+        while id.contains("--") {
+            id = id.replacingOccurrences(of: "--", with: "-")
+        }
+
+        // 앞뒤 하이픈 제거
+        id = id.trimmingCharacters(in: CharacterSet(charactersIn: "-"))
+
+        return id
     }
 
     // MARK: - 인용구 변환

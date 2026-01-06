@@ -2,9 +2,8 @@ import SwiftUI
 import WebKit
 
 // MARK: - 스크롤 동기화 관리자
-// 에디터와 프리뷰 간 스크롤 동기화 관리
+// 에디터와 프리뷰 간 스크롤 동기화 관리 (퍼센트 기반, 단순화)
 class ScrollSyncManager: ObservableObject {
-    // 스크롤 소스 (어디서 스크롤이 시작되었는지)
     enum ScrollSource {
         case none
         case editor
@@ -13,63 +12,52 @@ class ScrollSyncManager: ObservableObject {
 
     @Published var isEnabled: Bool = true
     private var currentSource: ScrollSource = .none
-    private var lastScrollTime: CFTimeInterval = 0
-    private let minScrollInterval: CFTimeInterval = 0.008 // ~120fps
+    private var lastSyncTime: CFTimeInterval = 0
 
     // 참조
     weak var editorScrollView: NSScrollView?
     weak var previewWebView: WKWebView?
 
-    // 스크롤 소스 리셋 타이머
+    // 소스 리셋 타이머
     private var resetTimer: Timer?
 
-    // MARK: - 에디터 스크롤 처리
+    // MARK: - 에디터 스크롤 시 프리뷰 동기화
 
     func editorDidScroll() {
-        guard isEnabled else { return }
+        guard isEnabled, currentSource != .preview else { return }
 
-        // 프리뷰에서 시작된 스크롤이면 무시
-        if currentSource == .preview { return }
-
-        // 쓰로틀링: 너무 빈번한 호출 방지
+        // 쓰로틀링
         let now = CACurrentMediaTime()
-        guard now - lastScrollTime >= minScrollInterval else { return }
-        lastScrollTime = now
+        guard now - lastSyncTime >= 0.016 else { return }
+        lastSyncTime = now
 
         currentSource = .editor
         syncPreviewToEditor()
         scheduleSourceReset()
     }
 
-    // MARK: - 프리뷰 스크롤 처리
+    // MARK: - 프리뷰 스크롤 시 에디터 동기화
 
     func previewDidScroll(scrollPercent: Double) {
-        guard isEnabled else { return }
-
-        // 에디터에서 시작된 스크롤이면 무시
-        if currentSource == .editor { return }
+        guard isEnabled, currentSource != .editor else { return }
 
         currentSource = .preview
         syncEditorToPreview(scrollPercent: scrollPercent)
         scheduleSourceReset()
     }
 
-    // MARK: - 동기화 로직
+    // MARK: - 동기화 로직 (단순 퍼센트 기반)
 
     private func syncPreviewToEditor() {
         guard let scrollView = editorScrollView,
               let webView = previewWebView else { return }
 
-        let scrollPercent = calculateEditorScrollPercent(scrollView)
+        let percent = getEditorScrollPercent()
 
-        // JavaScript로 프리뷰 스크롤 (즉시 실행, 애니메이션 없음)
         let js = """
         (function() {
-            var height = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
-            var scrollableHeight = height - window.innerHeight;
-            if (scrollableHeight > 0) {
-                window.scrollTo({top: scrollableHeight * \(scrollPercent), behavior: 'instant'});
-            }
+            var h = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight) - window.innerHeight;
+            if (h > 0) window.scrollTo(0, h * \(percent));
         })();
         """
         webView.evaluateJavaScript(js, completionHandler: nil)
@@ -78,40 +66,77 @@ class ScrollSyncManager: ObservableObject {
     private func syncEditorToPreview(scrollPercent: Double) {
         guard let scrollView = editorScrollView,
               let documentView = scrollView.documentView else { return }
-        let clipView = scrollView.contentView
 
-        let documentHeight = documentView.frame.height
-        let clipHeight = clipView.bounds.height
-        let scrollableHeight = documentHeight - clipHeight
+        let clipView = scrollView.contentView
+        let scrollableHeight = documentView.frame.height - clipView.bounds.height
 
         if scrollableHeight > 0 {
-            let newY = scrollableHeight * CGFloat(scrollPercent)
-            // 즉시 스크롤 (애니메이션 없음)
-            clipView.setBoundsOrigin(NSPoint(x: 0, y: newY))
+            clipView.setBoundsOrigin(NSPoint(x: 0, y: scrollableHeight * CGFloat(scrollPercent)))
         }
     }
 
-    private func calculateEditorScrollPercent(_ scrollView: NSScrollView) -> Double {
-        guard let documentView = scrollView.documentView else { return 0 }
+    // 에디터 스크롤 퍼센트 계산 (스크롤 위치 기반)
+    func getEditorScrollPercent() -> Double {
+        guard let scrollView = editorScrollView,
+              let documentView = scrollView.documentView else { return 0 }
+
         let clipView = scrollView.contentView
+        let scrollableHeight = documentView.frame.height - clipView.bounds.height
 
-        let documentHeight = documentView.frame.height
-        let clipHeight = clipView.bounds.height
-        let scrollableHeight = documentHeight - clipHeight
-
-        if scrollableHeight <= 0 { return 0 }
-
-        let currentY = clipView.bounds.origin.y
-        return min(1.0, max(0.0, Double(currentY / scrollableHeight)))
+        guard scrollableHeight > 0 else { return 0 }
+        return min(1.0, max(0.0, Double(clipView.bounds.origin.y / scrollableHeight)))
     }
 
-    // MARK: - 소스 리셋
+    // 에디터 커서 라인 기반 퍼센트 계산 (편집 시 사용)
+    func getEditorCursorLinePercent() -> Double {
+        guard let scrollView = editorScrollView,
+              let textView = scrollView.documentView as? NSTextView else { return 0 }
+
+        let text = textView.string
+        let cursorPosition = textView.selectedRange().location
+
+        // 커서 위치까지의 라인 수 계산
+        let textUpToCursor = (text as NSString).substring(to: min(cursorPosition, text.count))
+        let currentLine = textUpToCursor.components(separatedBy: "\n").count
+
+        // 전체 라인 수
+        let totalLines = max(1, text.components(separatedBy: "\n").count)
+
+        guard totalLines > 1 else { return 0 }
+        return min(1.0, Double(currentLine - 1) / Double(totalLines - 1))
+    }
 
     private func scheduleSourceReset() {
         resetTimer?.invalidate()
-        resetTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: false) { [weak self] _ in
+        resetTimer = Timer.scheduledTimer(withTimeInterval: 0.15, repeats: false) { [weak self] _ in
             self?.currentSource = .none
         }
+    }
+}
+
+// MARK: - 프리뷰 업데이트 디바운서
+// 편집 중에는 프리뷰 업데이트를 지연시켜 깜빡임 방지
+class PreviewDebouncer: ObservableObject {
+    private var debounceTimer: Timer?
+    private var updateAction: (() -> Void)?
+    private let delay: TimeInterval
+
+    init(delay: TimeInterval = 0.3) {
+        self.delay = delay
+    }
+
+    func debounce(action: @escaping () -> Void) {
+        updateAction = action
+        debounceTimer?.invalidate()
+        debounceTimer = Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in
+            self?.updateAction?()
+        }
+    }
+
+    // 즉시 업데이트 (탭 전환 등)
+    func updateNow(action: @escaping () -> Void) {
+        debounceTimer?.invalidate()
+        action()
     }
 }
 
@@ -124,6 +149,7 @@ struct MainContentView: View {
     @StateObject private var appState = AppState()
     @StateObject private var actionHandler = EditorActionHandler()
     @StateObject private var scrollSyncManager = ScrollSyncManager()
+    @StateObject private var previewDebouncer = PreviewDebouncer(delay: 0.3)
     @State private var htmlContent: String = ""
     @State private var pendingFileCheckTimer: Timer?
 
@@ -153,7 +179,10 @@ struct MainContentView: View {
                     onFileDrop: handleFileDrop,
                     onContentChange: { newContent in
                         documentManager.updateContent(newContent)
-                        updatePreview()
+                        // 디바운스: 편집 중에는 프리뷰 업데이트 지연
+                        previewDebouncer.debounce {
+                            updatePreview()
+                        }
                     }
                 )
             } else {
@@ -190,9 +219,8 @@ struct MainContentView: View {
             updatePreview()
         }
         .onChange(of: currentDocumentManager?.content) { _ in
-            if appState.autoReloadPreview {
-                updatePreview()
-            }
+            // auto reload가 켜져있고, 직접 content 변경이 감지된 경우 (탭 전환 등)
+            // onContentChange에서 이미 디바운스 처리되므로 여기서는 무시
         }
     }
 

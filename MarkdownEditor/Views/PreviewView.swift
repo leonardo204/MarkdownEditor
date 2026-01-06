@@ -9,6 +9,11 @@ struct PreviewView: NSViewRepresentable {
     var theme: PreviewTheme
     var scrollSyncManager: ScrollSyncManager?
 
+    // HTML 변경 감지를 위한 키
+    private var htmlKey: String {
+        "\(htmlContent.hashValue)_\(theme.rawValue)"
+    }
+
     func makeNSView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
 
@@ -43,8 +48,16 @@ struct PreviewView: NSViewRepresentable {
         scrollSyncManager?.previewWebView = webView
         context.coordinator.scrollSyncManager = scrollSyncManager
 
-        let fullHTML = wrapHTML(content: htmlContent, theme: theme)
-        webView.loadHTMLString(fullHTML, baseURL: Bundle.main.resourceURL)
+        // HTML이 변경된 경우에만 다시 로드
+        // 편집으로 인한 업데이트 시에는 스크롤 복원하지 않음
+        // (에디터 스크롤 시에만 ScrollSyncManager가 동기화 처리)
+        let currentKey = htmlKey
+        if context.coordinator.lastHtmlKey != currentKey {
+            context.coordinator.lastHtmlKey = currentKey
+
+            let fullHTML = wrapHTML(content: htmlContent, theme: theme)
+            webView.loadHTMLString(fullHTML, baseURL: Bundle.main.resourceURL)
+        }
     }
 
     func makeCoordinator() -> Coordinator {
@@ -141,6 +154,7 @@ struct PreviewView: NSViewRepresentable {
                             }
                         }
                     });
+
                 });
 
                 // Kroki 인코딩 함수 (URL-safe base64 of deflated content)
@@ -196,20 +210,81 @@ struct PreviewView: NSViewRepresentable {
     class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
         var parent: PreviewView
         var scrollSyncManager: ScrollSyncManager?
+        var lastHtmlKey: String = ""
 
         init(_ parent: PreviewView) {
             self.parent = parent
         }
 
         func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
-            // 외부 링크는 기본 브라우저에서 열기
             if let url = navigationAction.request.url,
                navigationAction.navigationType == .linkActivated {
-                NSWorkspace.shared.open(url)
+
+                // 앵커 링크 처리 (fragment가 있으면 내부 링크로 처리)
+                if let fragment = url.fragment, !fragment.isEmpty {
+                    // URL 디코딩 및 이스케이프 처리
+                    let decodedFragment = fragment.removingPercentEncoding ?? fragment
+                    let escapedFragment = decodedFragment
+                        .replacingOccurrences(of: "\\", with: "\\\\")
+                        .replacingOccurrences(of: "'", with: "\\'")
+
+                    // JavaScript로 앵커로 스크롤
+                    let js = """
+                    (function() {
+                        var fragment = '\(escapedFragment)';
+                        var target = document.getElementById(fragment);
+                        if (!target) {
+                            // ID로 못 찾으면 name 속성으로 시도
+                            target = document.querySelector('[name="' + fragment + '"]');
+                        }
+                        if (!target) {
+                            // 헤딩 텍스트로 검색 시도
+                            var headings = document.querySelectorAll('h1, h2, h3, h4, h5, h6');
+                            for (var i = 0; i < headings.length; i++) {
+                                var h = headings[i];
+                                if (h.id === fragment || h.textContent.trim().toLowerCase().replace(/\\s+/g, '-') === fragment.toLowerCase()) {
+                                    target = h;
+                                    break;
+                                }
+                            }
+                        }
+                        if (target) {
+                            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }
+                    })();
+                    """
+                    webView.evaluateJavaScript(js, completionHandler: nil)
+                    decisionHandler(.cancel)
+                    return
+                }
+
+                // 외부 링크는 기본 브라우저에서 열기
+                if url.scheme == "http" || url.scheme == "https" {
+                    NSWorkspace.shared.open(url)
+                }
                 decisionHandler(.cancel)
                 return
             }
             decisionHandler(.allow)
+        }
+
+        // 페이지 로드 완료 후 에디터 커서 위치에 맞춰 프리뷰 동기화
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            guard let syncManager = scrollSyncManager, syncManager.isEnabled else { return }
+
+            // 에디터의 현재 커서 라인 기준으로 프리뷰 동기화 (더 정확한 위치)
+            let percent = syncManager.getEditorCursorLinePercent()
+
+            // 약간의 딜레이 후 스크롤 (렌더링 완료 대기)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                let js = """
+                (function() {
+                    var h = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight) - window.innerHeight;
+                    if (h > 0) window.scrollTo(0, h * \(percent));
+                })();
+                """
+                webView.evaluateJavaScript(js, completionHandler: nil)
+            }
         }
 
         // JavaScript에서 스크롤 이벤트 수신

@@ -86,8 +86,8 @@ struct PreviewView: NSViewRepresentable {
             <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
             <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
 
-            <!-- Mermaid for diagrams -->
-            <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+            <!-- Mermaid for diagrams (v11.3+ supports markdown strings for line breaks) -->
+            <script src="https://cdn.jsdelivr.net/npm/mermaid@11.3/dist/mermaid.min.js"></script>
 
             <!-- Pako for PlantUML compression -->
             <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
@@ -112,7 +112,11 @@ struct PreviewView: NSViewRepresentable {
                             mermaid.initialize({
                                 startOnLoad: false,
                                 theme: '\(mermaidTheme)',
-                                securityLevel: 'loose'
+                                securityLevel: 'loose',
+                                flowchart: {
+                                    htmlLabels: true,
+                                    useMaxWidth: true
+                                }
                             });
                             await mermaid.run({
                                 querySelector: '.mermaid'

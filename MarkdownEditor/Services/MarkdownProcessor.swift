@@ -117,29 +117,21 @@ class MarkdownProcessor {
 
         guard !matches.isEmpty else { return text }
 
-        // 매칭 정보를 미리 수집
-        var replacements: [(range: NSRange, placeholder: String)] = []
+        // NSMutableString을 사용하여 UTF-16 기반으로 일관되게 처리
+        let mutableString = NSMutableString(string: text)
 
-        for (index, match) in matches.enumerated() {
-            guard let codeRange = Range(match.range(at: 1), in: text) else { continue }
-
-            let code = String(text[codeRange])
+        // 뒤에서부터 교체하여 인덱스 문제 방지
+        for (index, match) in matches.enumerated().reversed() {
+            let codeRange = match.range(at: 1)
+            let code = nsText.substring(with: codeRange)
             let placeholder = "<!--INLINECODE\(index)-->"
             let htmlCode = "<code>\(escapeHTML(code))</code>"
 
             storage[placeholder] = htmlCode
-            replacements.append((range: match.range, placeholder: placeholder))
+            mutableString.replaceCharacters(in: match.range, with: placeholder)
         }
 
-        // 뒤에서부터 교체
-        var result = nsText as String
-        for replacement in replacements.reversed() {
-            let startIndex = result.index(result.startIndex, offsetBy: replacement.range.location)
-            let endIndex = result.index(startIndex, offsetBy: replacement.range.length)
-            result = result.replacingCharacters(in: startIndex..<endIndex, with: replacement.placeholder)
-        }
-
-        return result
+        return mutableString as String
     }
 
     private func restoreInlineCode(_ text: String, storage: [String: String]) -> String {
@@ -459,7 +451,24 @@ class MarkdownProcessor {
     }
 
     private func parseTableRow(_ row: String) -> [String] {
-        var cells = row.components(separatedBy: "|")
+        // 인라인 코드(백틱) 내의 | 문자를 보호하면서 파싱
+        var cells: [String] = []
+        var currentCell = ""
+        var inCode = false
+
+        for char in row {
+            if char == "`" {
+                inCode.toggle()
+                currentCell.append(char)
+            } else if char == "|" && !inCode {
+                cells.append(currentCell)
+                currentCell = ""
+            } else {
+                currentCell.append(char)
+            }
+        }
+        cells.append(currentCell)
+
         // 앞뒤 빈 요소 제거
         if cells.first?.trimmingCharacters(in: .whitespaces).isEmpty == true {
             cells.removeFirst()

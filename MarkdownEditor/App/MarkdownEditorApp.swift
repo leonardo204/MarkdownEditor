@@ -162,6 +162,7 @@ struct MarkdownEditorApp: App {
                     handleOpenURL(url)
                 }
         }
+        .handlesExternalEvents(matching: [])  // 파일 열기로 새 창 자동 생성 방지
         .onChange(of: newWindowTrigger.counter) { _ in
             DebugLogger.shared.log("WindowGroup onChange - opening new window")
             openWindow(id: "main")

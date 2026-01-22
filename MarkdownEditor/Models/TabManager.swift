@@ -82,10 +82,12 @@ class TabManager: ObservableObject {
         tabs.remove(at: index)
         DebugLogger.shared.log("TabManager: Closed tab \(index), remaining: \(tabs.count)")
 
-        // 탭이 없으면 새 탭 생성
+        // 탭이 없으면 창 닫기
         if tabs.isEmpty {
-            addNewTab()
-            selectedTabIndex = 0
+            DispatchQueue.main.async {
+                NSApp.keyWindow?.close()
+            }
+            return true
         } else if selectedTabIndex >= tabs.count {
             selectedTabIndex = tabs.count - 1
         } else if selectedTabIndex > index {

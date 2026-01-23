@@ -27,8 +27,8 @@ class MarkdownProcessor {
         // 4. 인라인 요소 변환
         html = convertBoldItalic(html)
         html = convertStrikethrough(html)
+        html = convertImages(html)  // 이미지를 링크보다 먼저 처리 (![alt](url)이 [alt](url)로 잘못 매칭되지 않도록)
         html = convertLinks(html)
-        html = convertImages(html)
 
         // 5. 확장 문법 변환
         html = convertFootnotes(html)
@@ -540,16 +540,65 @@ class MarkdownProcessor {
         )
     }
 
-    // MARK: - 이미지 변환
+    // MARK: - 이미지 변환 (base64 이미지 포함 긴 URL 지원)
     private func convertImages(_ text: String) -> String {
-        let pattern = "!\\[([^\\]]+)\\]\\(([^\\)]+)\\)"
-        guard let regex = try? NSRegularExpression(pattern: pattern) else { return text }
+        var result = ""
+        var index = text.startIndex
 
-        return regex.stringByReplacingMatches(
-            in: text,
-            range: NSRange(text.startIndex..., in: text),
-            withTemplate: "<img src=\"$2\" alt=\"$1\">"
-        )
+        while index < text.endIndex {
+            // "![" 패턴 찾기
+            if let exclamationIndex = text[index...].firstIndex(of: "!"),
+               exclamationIndex < text.index(before: text.endIndex),
+               text.index(after: exclamationIndex) < text.endIndex,
+               text[text.index(after: exclamationIndex)] == "[" {
+
+                // "![" 이전 텍스트 추가
+                result += text[index..<exclamationIndex]
+
+                let bracketStart = text.index(after: text.index(after: exclamationIndex)) // "[" 다음 위치
+
+                // "](" 찾기
+                if let bracketEnd = text[bracketStart...].firstIndex(of: "]"),
+                   bracketEnd < text.index(before: text.endIndex),
+                   text.index(after: bracketEnd) < text.endIndex,
+                   text[text.index(after: bracketEnd)] == "(" {
+
+                    let altText = String(text[bracketStart..<bracketEnd])
+                    let urlStart = text.index(after: text.index(after: bracketEnd)) // "(" 다음 위치
+
+                    // 닫는 괄호 찾기 (중첩 괄호 고려)
+                    var parenCount = 1
+                    var urlEnd = urlStart
+                    while urlEnd < text.endIndex && parenCount > 0 {
+                        if text[urlEnd] == "(" {
+                            parenCount += 1
+                        } else if text[urlEnd] == ")" {
+                            parenCount -= 1
+                        }
+                        if parenCount > 0 {
+                            urlEnd = text.index(after: urlEnd)
+                        }
+                    }
+
+                    if parenCount == 0 {
+                        let url = String(text[urlStart..<urlEnd])
+                        result += "<img src=\"\(url)\" alt=\"\(altText)\">"
+                        index = text.index(after: urlEnd)
+                        continue
+                    }
+                }
+
+                // 매칭 실패 시 "!" 문자만 추가하고 진행
+                result += "!"
+                index = text.index(after: exclamationIndex)
+            } else {
+                // "!" 없으면 나머지 텍스트 추가하고 종료
+                result += text[index...]
+                break
+            }
+        }
+
+        return result
     }
 
     // MARK: - 각주 변환

@@ -45,10 +45,18 @@ class TabManager: ObservableObject {
     // 새 탭 추가
     @discardableResult
     func addNewTab(documentManager: DocumentManager? = nil) -> TabItem {
-        let tab = TabItem(documentManager: documentManager ?? DocumentManager())
+        let dm: DocumentManager
+        if let existingDM = documentManager {
+            dm = existingDM
+        } else {
+            // 새 DocumentManager 생성 시 적절한 Untitled 번호 할당
+            dm = DocumentManager()
+            dm.windowTitle = WindowTabManagerRegistry.shared.generateNextUntitledTitle()
+        }
+        let tab = TabItem(documentManager: dm)
         tabs.append(tab)
         selectedTabIndex = tabs.count - 1
-        DebugLogger.shared.log("TabManager: Added new tab, total: \(tabs.count)")
+        DebugLogger.shared.log("TabManager: Added new tab '\(dm.windowTitle)', total: \(tabs.count)")
         return tab
     }
 

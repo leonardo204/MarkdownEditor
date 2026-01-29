@@ -171,7 +171,13 @@ struct MarkdownEditorApp: App {
             // 파일 메뉴 커맨드
             CommandGroup(replacing: .newItem) {
                 Button("새 문서") {
-                    focusedDocumentManager?.newDocumentWithConfirmation()
+                    // 설정에 따라 새 탭 또는 새 윈도우 열기
+                    let openInNewTab = UserDefaults.standard.object(forKey: "openFilesInNewTab") as? Bool ?? true
+                    if openInNewTab {
+                        focusedTabManager?.addNewTab()
+                    } else {
+                        NewWindowTrigger.shared.trigger()
+                    }
                 }
                 .keyboardShortcut("n", modifiers: .command)
 
@@ -339,6 +345,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         checkAndOfferDefaultApp()
 
         isFirstLaunch = false
+
+        // pending 파일이 있으면 앱을 활성화하고 창이 뜨도록 함
+        if FileOpenManager.shared.pendingCount > 0 {
+            DebugLogger.shared.log("applicationDidFinishLaunching - activating app for pending files")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                NSApp.activate(ignoringOtherApps: true)
+                // 윈도우가 아직 없으면 트리거
+                if NSApp.windows.filter({ $0.isVisible }).isEmpty {
+                    DebugLogger.shared.log("applicationDidFinishLaunching - no visible windows, triggering new window")
+                    NewWindowTrigger.shared.trigger()
+                }
+            }
+        }
     }
 
     // 저장된 상태 삭제
@@ -394,12 +413,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
         } else {
-            // 윈도우가 없으면 pending에 추가하고 윈도우 생성
+            // 윈도우가 없으면 pending에 추가하고 새 윈도우 생성
             for url in validURLs {
                 FileOpenManager.shared.addPendingFile(url, checkDuplicate: false)
             }
+            // 앱이 콜드 스타트 상태면 새 윈도우 트리거 + 앱 활성화
             DispatchQueue.main.async {
-                self.tryLoadPendingFilesIntoTabs()
+                DebugLogger.shared.log("application(_:open:) - No window, triggering new window")
+                NewWindowTrigger.shared.trigger()
+                // 앱을 전면으로 가져오기
+                NSApp.activate(ignoringOtherApps: true)
             }
         }
     }
@@ -632,7 +655,7 @@ class DocumentManager: ObservableObject {
     @Published var content: String = ""
     @Published var currentFileURL: URL?
     @Published var isModified: Bool = false
-    @Published var windowTitle: String = "Untitled"
+    @Published var windowTitle: String = "Untitled"  // TabManager.addNewTab()에서 재할당됨
 
     // 저장된 원본 내용 (수정 여부 판단용)
     private var savedContent: String = ""
@@ -691,7 +714,7 @@ class DocumentManager: ObservableObject {
         savedContent = ""
         currentFileURL = nil
         isModified = false
-        windowTitle = "Untitled"
+        windowTitle = WindowTabManagerRegistry.shared.generateNextUntitledTitle()
     }
 
     func openDocument() {

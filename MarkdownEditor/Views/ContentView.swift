@@ -506,6 +506,61 @@ class WindowTabManagerRegistry {
         }
         return false
     }
+
+    // MARK: - Untitled 번호 관리 (빈 번호 재사용)
+
+    /// 모든 윈도우에서 사용 중인 Untitled 번호 수집
+    func getUsedUntitledNumbers() -> Set<Int> {
+        var usedNumbers = Set<Int>()
+
+        for (_, entry) in registry {
+            for tab in entry.manager.tabs {
+                let title = tab.documentManager.windowTitle
+                if let number = parseUntitledNumber(from: title) {
+                    usedNumbers.insert(number)
+                }
+            }
+        }
+
+        return usedNumbers
+    }
+
+    /// "Untitled N" 형식에서 번호 추출 (Untitled만 있으면 nil)
+    private func parseUntitledNumber(from title: String) -> Int? {
+        // "Untitled" 또는 "Untitled N" 형식 확인
+        guard title.hasPrefix("Untitled") else { return nil }
+
+        let suffix = title.dropFirst("Untitled".count).trimmingCharacters(in: .whitespaces)
+        if suffix.isEmpty {
+            return nil  // "Untitled"만 있는 경우 (번호 없음)
+        }
+
+        return Int(suffix)
+    }
+
+    /// 사용 가능한 가장 작은 Untitled 번호 반환
+    func getNextAvailableUntitledNumber() -> Int {
+        let usedNumbers = getUsedUntitledNumbers()
+
+        // 사용 중인 번호가 없으면 1 반환
+        if usedNumbers.isEmpty {
+            return 1
+        }
+
+        // 1부터 시작해서 빈 번호 찾기
+        var number = 1
+        while usedNumbers.contains(number) {
+            number += 1
+        }
+
+        return number
+    }
+
+    /// 다음 Untitled 제목 생성
+    func generateNextUntitledTitle() -> String {
+        let number = getNextAvailableUntitledNumber()
+        return "Untitled \(number)"
+    }
 }
 
 // MARK: - 에디터 헤더

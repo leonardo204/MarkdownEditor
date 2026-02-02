@@ -55,267 +55,30 @@ class DebugLogger {
     }
 }
 
-// MARK: - 파일 열기 관리자 (싱글톤)
-// 핵심: 파일 URL을 먼저 저장하고, 창이 준비되면 로드
-class FileOpenManager: ObservableObject {
-    static let shared = FileOpenManager()
-
-    // 열어야 할 파일 URL 큐
-    private var pendingURLs: [URL] = []
-    private let lock = NSLock()
-
-    // 파일 추가 (이미 열린 파일이면 false 반환)
-    @discardableResult
-    func addPendingFile(_ url: URL, checkDuplicate: Bool = true) -> Bool {
-        // 이미 열린 파일인지 확인
-        if checkDuplicate && WindowDocumentManagerRegistry.shared.bringToFrontIfAlreadyOpen(url) {
-            return false
-        }
-
-        lock.lock()
-        defer { lock.unlock() }
-        pendingURLs.append(url)
-        DebugLogger.shared.log("FileOpenManager: Added pending file: \(url.lastPathComponent), queue: \(pendingURLs.count)")
-        return true
-    }
-
-    // 다음 파일 가져오기 (창에서 호출)
-    func popPendingFile() -> URL? {
-        lock.lock()
-        defer { lock.unlock() }
-        guard !pendingURLs.isEmpty else { return nil }
-        let url = pendingURLs.removeFirst()
-        DebugLogger.shared.log("FileOpenManager: Popped file: \(url.lastPathComponent), remaining: \(pendingURLs.count)")
-        return url
-    }
-
-    // 현재 pending 파일 개수
-    var pendingCount: Int {
-        lock.lock()
-        defer { lock.unlock() }
-        return pendingURLs.count
-    }
-
-    // 첫 번째 pending 파일 확인 (제거하지 않음)
-    func peekPendingFile() -> URL? {
-        lock.lock()
-        defer { lock.unlock() }
-        return pendingURLs.first
-    }
-}
-
-// MARK: - 새 창 열기 트리거 (싱글톤)
-class NewWindowTrigger: ObservableObject {
-    static let shared = NewWindowTrigger()
-    @Published var counter: Int = 0
-
-    // 탭으로 열기 요청 시 사용
-    var openAsTab: Bool = false
-    var sourceWindow: NSWindow?
-
-    func trigger() {
-        DebugLogger.shared.log("NewWindowTrigger.trigger() called")
-        counter += 1
-    }
-
-    // 새 탭으로 열기
-    func triggerNewTab() {
-        DebugLogger.shared.log("NewWindowTrigger.triggerNewTab() called")
-        openAsTab = true
-        sourceWindow = NSApp.keyWindow
-        counter += 1
-    }
-
-    // 상태 리셋
-    func reset() {
-        openAsTab = false
-        sourceWindow = nil
-    }
-}
-
 // macOS Markdown Editor 애플리케이션
 // 단일 윈도우 기반 앱 구조
 
 @main
 struct MarkdownEditorApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-    @FocusedValue(\.documentManager) var focusedDocumentManager
-    @FocusedValue(\.tabManager) var focusedTabManager
-    @Environment(\.openWindow) private var openWindow
-    @ObservedObject private var newWindowTrigger = NewWindowTrigger.shared
 
     init() {
         // 앱 초기화 시점에 상태 복원 완전 비활성화
         UserDefaults.standard.set(false, forKey: "NSQuitAlwaysKeepsWindows")
-        // 커스텀 탭 바 사용으로 네이티브 탭 비활성화
-        NSWindow.allowsAutomaticWindowTabbing = false
+        // 네이티브 윈도우 탭 활성화 (Safari, Finder 스타일)
+        NSWindow.allowsAutomaticWindowTabbing = true
         DebugLogger.shared.log("MarkdownEditorApp.init()")
     }
 
     var body: some Scene {
-        // 메인 윈도우
-        WindowGroup(id: "main") {
-            MainContentView()
-                .onOpenURL { url in
-                    // SwiftUI 네이티브 방식으로 파일 URL 수신
-                    DebugLogger.shared.log("onOpenURL received: \(url.lastPathComponent)")
-                    handleOpenURL(url)
-                }
-        }
-        .handlesExternalEvents(matching: [])  // 파일 열기로 새 창 자동 생성 방지
-        .onChange(of: newWindowTrigger.counter) { _ in
-            DebugLogger.shared.log("WindowGroup onChange - opening new window")
-            openWindow(id: "main")
-        }
-        .commands {
-            // 파일 메뉴 커맨드
-            CommandGroup(replacing: .newItem) {
-                Button("새 문서") {
-                    // 설정에 따라 새 탭 또는 새 윈도우 열기
-                    let openInNewTab = UserDefaults.standard.object(forKey: "openFilesInNewTab") as? Bool ?? true
-                    if openInNewTab {
-                        focusedTabManager?.addNewTab()
-                    } else {
-                        NewWindowTrigger.shared.trigger()
-                    }
-                }
-                .keyboardShortcut("n", modifiers: .command)
-
-                Button("새 탭") {
-                    focusedTabManager?.addNewTab()
-                }
-                .keyboardShortcut("t", modifiers: .command)
-
-                Button("새 윈도우") {
-                    NewWindowTrigger.shared.trigger()
-                }
-                .keyboardShortcut("n", modifiers: [.command, .shift])
-            }
-
-            CommandGroup(after: .newItem) {
-                Button("열기...") {
-                    openDocumentInTab()
-                }
-                .keyboardShortcut("o", modifiers: .command)
-
-                Divider()
-
-                Button("탭 닫기") {
-                    _ = focusedTabManager?.closeCurrentTab()
-                }
-                .keyboardShortcut("w", modifiers: .command)
-
-                Divider()
-
-                Button("저장") {
-                    focusedDocumentManager?.saveDocument()
-                }
-                .keyboardShortcut("s", modifiers: .command)
-
-                Button("다른 이름으로 저장...") {
-                    focusedDocumentManager?.saveDocumentAs()
-                }
-                .keyboardShortcut("s", modifiers: [.command, .shift])
-            }
-
-            // 탭 이동 명령
-            CommandGroup(after: .windowArrangement) {
-                Button("다음 탭") {
-                    focusedTabManager?.selectNextTab()
-                }
-                .keyboardShortcut("]", modifiers: [.command, .shift])
-
-                Button("이전 탭") {
-                    focusedTabManager?.selectPreviousTab()
-                }
-                .keyboardShortcut("[", modifiers: [.command, .shift])
-
-                Divider()
-
-                // 탭 번호로 이동 (1-9)
-                ForEach(1..<10, id: \.self) { number in
-                    Button("탭 \(number)") {
-                        focusedTabManager?.selectTab(number: number)
-                    }
-                    .keyboardShortcut(KeyEquivalent(Character("\(number)")), modifiers: .command)
-                }
-            }
-
-            TextEditingCommands()
-        }
+        // WindowGroup 제거됨 - NSWindowController가 윈도우 관리
+        // Settings Scene만 유지
 
         #if os(macOS)
         Settings {
             SettingsView()
         }
         #endif
-    }
-
-    // onOpenURL 핸들러
-    private func handleOpenURL(_ url: URL) {
-        let ext = url.pathExtension.lowercased()
-        guard ext == "md" || ext == "markdown" || ext == "txt" || ext == "text" else {
-            DebugLogger.shared.log("onOpenURL: Invalid extension: \(ext)")
-            return
-        }
-
-        _ = url.startAccessingSecurityScopedResource()
-
-        // 이미 열린 파일인지 확인
-        if WindowTabManagerRegistry.shared.bringToFrontIfAlreadyOpen(url) {
-            return
-        }
-
-        // 현재 키 윈도우의 TabManager에서 열기
-        let openInNewTab = UserDefaults.standard.object(forKey: "openFilesInNewTab") as? Bool ?? true
-
-        if let keyWindow = NSApp.keyWindow,
-           let tabManager = WindowTabManagerRegistry.shared.tabManager(for: keyWindow) {
-            if openInNewTab {
-                tabManager.openFileInNewTab(url: url)
-            } else {
-                // 새 윈도우에서 열기
-                FileOpenManager.shared.addPendingFile(url, checkDuplicate: false)
-                NewWindowTrigger.shared.trigger()
-            }
-        } else {
-            // 윈도우가 없으면 pending에 추가
-            FileOpenManager.shared.addPendingFile(url, checkDuplicate: false)
-        }
-    }
-
-    // 파일 열기 (탭/윈도우 설정에 따라)
-    private func openDocumentInTab() {
-        let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.markdown, .plainText]
-        panel.allowsMultipleSelection = true
-        panel.canChooseDirectories = false
-
-        if panel.runModal() == .OK {
-            let urls = panel.urls
-            guard !urls.isEmpty else { return }
-
-            let openInNewTab = UserDefaults.standard.object(forKey: "openFilesInNewTab") as? Bool ?? true
-
-            for url in urls {
-                // 이미 열린 파일인지 확인
-                if WindowTabManagerRegistry.shared.bringToFrontIfAlreadyOpen(url) {
-                    continue
-                }
-
-                if openInNewTab {
-                    // 현재 윈도우의 TabManager에서 열기
-                    if let keyWindow = NSApp.keyWindow,
-                       let tabManager = WindowTabManagerRegistry.shared.tabManager(for: keyWindow) {
-                        tabManager.openFileInNewTab(url: url)
-                    }
-                } else {
-                    // 새 윈도우에서 열기
-                    FileOpenManager.shared.addPendingFile(url, checkDuplicate: false)
-                    NewWindowTrigger.shared.trigger()
-                }
-            }
-        }
     }
 }
 
@@ -324,10 +87,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private let hasAskedDefaultAppKey = "HasAskedToSetAsDefaultApp"
     private let bundleIdentifier = "com.zerolive.MarkdownEditor"
-
-    // 콜드 스타트 여부 추적
-    private var isFirstLaunch = true
-    private var hasProcessedInitialFiles = false
 
     func applicationWillFinishLaunching(_ notification: Notification) {
         // 가장 먼저 실행되는 시점 - 상태 복원 비활성화
@@ -339,25 +98,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        DebugLogger.shared.log("applicationDidFinishLaunching - pending files: \(FileOpenManager.shared.pendingCount)")
+        DebugLogger.shared.log("applicationDidFinishLaunching")
+
+        // 메뉴 설정
+        setupMainMenu()
 
         // 첫 실행 시 기본 앱 설정 제안
         checkAndOfferDefaultApp()
 
-        isFirstLaunch = false
-
-        // pending 파일이 있으면 앱을 활성화하고 창이 뜨도록 함
-        if FileOpenManager.shared.pendingCount > 0 {
-            DebugLogger.shared.log("applicationDidFinishLaunching - activating app for pending files")
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                NSApp.activate(ignoringOtherApps: true)
-                // 윈도우가 아직 없으면 트리거
-                if NSApp.windows.filter({ $0.isVisible }).isEmpty {
-                    DebugLogger.shared.log("applicationDidFinishLaunching - no visible windows, triggering new window")
-                    NewWindowTrigger.shared.trigger()
-                }
-            }
+        // 첫 윈도우 생성 (TabService가 윈도우 관리)
+        if TabService.shared.managedWindowsCount == 0 {
+            DebugLogger.shared.log("Creating initial document window")
+            TabService.shared.createNewDocument()
         }
+
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     // 저장된 상태 삭제
@@ -394,58 +149,197 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             _ = url.startAccessingSecurityScopedResource()
         }
 
-        let openInNewTab = UserDefaults.standard.object(forKey: "openFilesInNewTab") as? Bool ?? true
+        // TabService를 통해 파일 열기
+        for url in validURLs {
+            TabService.shared.openDocument(url: url)
+        }
 
-        // 현재 키 윈도우의 TabManager 찾기
+        // 앱을 전면으로 가져오기
+        DispatchQueue.main.async {
+            NSApp.activate(ignoringOtherApps: true)
+        }
+    }
+
+    // MARK: - 메뉴 설정
+
+    private func setupMainMenu() {
+        // 새 메인 메뉴 생성
+        let mainMenu = NSMenu()
+
+        // App 메뉴
+        let appMenuItem = NSMenuItem()
+        let appMenu = NSMenu()
+        appMenu.addItem(NSMenuItem(title: "About MarkdownEditor", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: ""))
+        appMenu.addItem(NSMenuItem.separator())
+        appMenu.addItem(NSMenuItem(title: "Preferences...", action: #selector(showPreferences(_:)), keyEquivalent: ","))
+        appMenu.addItem(NSMenuItem.separator())
+        appMenu.addItem(NSMenuItem(title: "Hide MarkdownEditor", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h"))
+        let hideOthersItem = NSMenuItem(title: "Hide Others", action: #selector(NSApplication.hideOtherApplications(_:)), keyEquivalent: "h")
+        hideOthersItem.keyEquivalentModifierMask = [.command, .option]
+        appMenu.addItem(hideOthersItem)
+        appMenu.addItem(NSMenuItem(title: "Show All", action: #selector(NSApplication.unhideAllApplications(_:)), keyEquivalent: ""))
+        appMenu.addItem(NSMenuItem.separator())
+        appMenu.addItem(NSMenuItem(title: "Quit MarkdownEditor", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        appMenuItem.submenu = appMenu
+        mainMenu.addItem(appMenuItem)
+
+        // File 메뉴
+        let fileMenuItem = NSMenuItem()
+        let fileMenu = NSMenu(title: "File")
+
+        // 새 탭 (Cmd+T)
+        let newTabItem = NSMenuItem(title: "새 탭", action: #selector(newDocument(_:)), keyEquivalent: "t")
+        newTabItem.target = self
+        fileMenu.addItem(newTabItem)
+
+        // 새 문서 (Cmd+N)
+        let newDocItem = NSMenuItem(title: "새 문서", action: #selector(newDocument(_:)), keyEquivalent: "n")
+        newDocItem.target = self
+        fileMenu.addItem(newDocItem)
+
+        // 새 윈도우
+        let newWindowItem = NSMenuItem(title: "새 윈도우", action: #selector(newWindow(_:)), keyEquivalent: "N")
+        newWindowItem.keyEquivalentModifierMask = [.command, .shift]
+        newWindowItem.target = self
+        fileMenu.addItem(newWindowItem)
+
+        fileMenu.addItem(NSMenuItem.separator())
+
+        // 열기
+        let openItem = NSMenuItem(title: "열기...", action: #selector(openDocument(_:)), keyEquivalent: "o")
+        openItem.target = self
+        fileMenu.addItem(openItem)
+
+        fileMenu.addItem(NSMenuItem.separator())
+
+        // 닫기
+        let closeItem = NSMenuItem(title: "닫기", action: #selector(closeDocument(_:)), keyEquivalent: "w")
+        closeItem.target = self
+        fileMenu.addItem(closeItem)
+
+        fileMenu.addItem(NSMenuItem.separator())
+
+        // 저장
+        let saveItem = NSMenuItem(title: "저장", action: #selector(saveDocument(_:)), keyEquivalent: "s")
+        saveItem.target = self
+        fileMenu.addItem(saveItem)
+
+        // 다른 이름으로 저장
+        let saveAsItem = NSMenuItem(title: "다른 이름으로 저장...", action: #selector(saveDocumentAs(_:)), keyEquivalent: "S")
+        saveAsItem.keyEquivalentModifierMask = [.command, .shift]
+        saveAsItem.target = self
+        fileMenu.addItem(saveAsItem)
+
+        fileMenuItem.submenu = fileMenu
+        mainMenu.addItem(fileMenuItem)
+
+        // Edit 메뉴
+        let editMenuItem = NSMenuItem()
+        let editMenu = NSMenu(title: "Edit")
+        editMenu.addItem(NSMenuItem(title: "Undo", action: Selector(("undo:")), keyEquivalent: "z"))
+        editMenu.addItem(NSMenuItem(title: "Redo", action: Selector(("redo:")), keyEquivalent: "Z"))
+        editMenu.addItem(NSMenuItem.separator())
+        editMenu.addItem(NSMenuItem(title: "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: "x"))
+        editMenu.addItem(NSMenuItem(title: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c"))
+        editMenu.addItem(NSMenuItem(title: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v"))
+        editMenu.addItem(NSMenuItem(title: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a"))
+        editMenuItem.submenu = editMenu
+        mainMenu.addItem(editMenuItem)
+
+        // View 메뉴
+        let viewMenuItem = NSMenuItem()
+        let viewMenu = NSMenu(title: "View")
+        let toggleTabBarItem = NSMenuItem(title: "탭 바 표시/숨기기", action: #selector(toggleTabBar(_:)), keyEquivalent: "")
+        toggleTabBarItem.target = self
+        viewMenu.addItem(toggleTabBarItem)
+        viewMenuItem.submenu = viewMenu
+        mainMenu.addItem(viewMenuItem)
+
+        // Window 메뉴
+        let windowMenuItem = NSMenuItem()
+        let windowMenu = NSMenu(title: "Window")
+        windowMenu.addItem(NSMenuItem(title: "Minimize", action: #selector(NSWindow.miniaturize(_:)), keyEquivalent: "m"))
+        windowMenu.addItem(NSMenuItem(title: "Zoom", action: #selector(NSWindow.zoom(_:)), keyEquivalent: ""))
+        windowMenu.addItem(NSMenuItem.separator())
+        windowMenu.addItem(NSMenuItem(title: "Show All Tabs", action: #selector(NSWindow.toggleTabOverview(_:)), keyEquivalent: ""))
+        let mergeItem = NSMenuItem(title: "Merge All Windows", action: #selector(NSWindow.mergeAllWindows(_:)), keyEquivalent: "")
+        windowMenu.addItem(mergeItem)
+        windowMenu.addItem(NSMenuItem.separator())
+        windowMenu.addItem(NSMenuItem(title: "Bring All to Front", action: #selector(NSApplication.arrangeInFront(_:)), keyEquivalent: ""))
+        windowMenuItem.submenu = windowMenu
+        mainMenu.addItem(windowMenuItem)
+
+        // Help 메뉴
+        let helpMenuItem = NSMenuItem()
+        let helpMenu = NSMenu(title: "Help")
+        helpMenuItem.submenu = helpMenu
+        mainMenu.addItem(helpMenuItem)
+
+        NSApp.mainMenu = mainMenu
+        NSApp.windowsMenu = windowMenu
+    }
+
+    @objc func showPreferences(_ sender: Any?) {
+        NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
+    }
+
+    @objc func toggleTabBar(_ sender: Any?) {
+        NSApp.keyWindow?.toggleTabBar(nil)
+    }
+
+    // MARK: - 메뉴 액션
+
+    @objc func newDocument(_ sender: Any?) {
+        DebugLogger.shared.log("Menu: New Document")
+
+        // 현재 윈도우가 있으면 탭으로 추가
         if let keyWindow = NSApp.keyWindow,
-           let tabManager = WindowTabManagerRegistry.shared.tabManager(for: keyWindow) {
-            for url in validURLs {
-                // 이미 열린 파일인지 확인
-                if WindowTabManagerRegistry.shared.bringToFrontIfAlreadyOpen(url) {
-                    continue
-                }
-
-                if openInNewTab {
-                    tabManager.openFileInNewTab(url: url)
-                } else {
-                    FileOpenManager.shared.addPendingFile(url, checkDuplicate: false)
-                    NewWindowTrigger.shared.trigger()
-                }
-            }
+           let newWindow = TabService.shared.newWindowForTab(orderFront: false) {
+            keyWindow.addTabbedWindow(newWindow, ordered: .above)
+            newWindow.makeKeyAndOrderFront(nil)
         } else {
-            // 윈도우가 없으면 pending에 추가하고 새 윈도우 생성
-            for url in validURLs {
-                FileOpenManager.shared.addPendingFile(url, checkDuplicate: false)
-            }
-            // 앱이 콜드 스타트 상태면 새 윈도우 트리거 + 앱 활성화
-            DispatchQueue.main.async {
-                DebugLogger.shared.log("application(_:open:) - No window, triggering new window")
-                NewWindowTrigger.shared.trigger()
-                // 앱을 전면으로 가져오기
-                NSApp.activate(ignoringOtherApps: true)
+            TabService.shared.createNewDocument()
+        }
+    }
+
+    @objc func newWindow(_ sender: Any?) {
+        DebugLogger.shared.log("Menu: New Window")
+        TabService.shared.createNewDocument()
+    }
+
+    @objc func openDocument(_ sender: Any?) {
+        DebugLogger.shared.log("Menu: Open Document")
+
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [UTType.plainText]
+        panel.allowsMultipleSelection = true
+        panel.canChooseDirectories = false
+
+        if panel.runModal() == .OK {
+            for url in panel.urls {
+                TabService.shared.openDocument(url: url)
             }
         }
     }
 
-    // pending 파일들을 기존 빈 탭에 로드하거나 새 탭 생성
-    private func tryLoadPendingFilesIntoTabs() {
-        DebugLogger.shared.log("tryLoadPendingFilesIntoTabs - pending: \(FileOpenManager.shared.pendingCount)")
+    @objc func closeDocument(_ sender: Any?) {
+        DebugLogger.shared.log("Menu: Close Document")
+        NSApp.keyWindow?.performClose(nil)
+    }
 
-        // 키 윈도우의 TabManager 찾기
+    @objc func saveDocument(_ sender: Any?) {
+        DebugLogger.shared.log("Menu: Save Document")
         if let keyWindow = NSApp.keyWindow,
-           let tabManager = WindowTabManagerRegistry.shared.tabManager(for: keyWindow) {
-            // 현재 탭이 비어있으면 첫 번째 파일 로드
-            if let currentTab = tabManager.currentTab,
-               currentTab.documentManager.currentFileURL == nil && currentTab.documentManager.content.isEmpty {
-                if let url = FileOpenManager.shared.popPendingFile() {
-                    currentTab.documentManager.loadFile(from: url)
-                }
-            }
+           let controller = TabService.shared.managedWindows.first(where: { $0.window === keyWindow })?.controller {
+            controller.documentManager.saveDocument()
+        }
+    }
 
-            // 나머지 파일들은 새 탭에서 열기
-            while let url = FileOpenManager.shared.popPendingFile() {
-                tabManager.openFileInNewTab(url: url)
-            }
+    @objc func saveDocumentAs(_ sender: Any?) {
+        DebugLogger.shared.log("Menu: Save Document As")
+        if let keyWindow = NSApp.keyWindow,
+           let controller = TabService.shared.managedWindows.first(where: { $0.window === keyWindow })?.controller {
+            controller.documentManager.saveDocumentAs()
         }
     }
 
@@ -518,38 +412,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        // 모든 윈도우의 수정 상태 확인
-        for window in NSApp.windows {
-            if let documentManager = findDocumentManager(in: window),
-               documentManager.isModified {
-
-                // 해당 윈도우를 앞으로 가져오기
-                window.makeKeyAndOrderFront(nil)
-
-                // 저장 확인 다이얼로그 표시
-                let response = showSaveConfirmationAlert(for: documentManager.windowTitle)
-
-                switch response {
-                case .alertFirstButtonReturn:  // 저장
-                    documentManager.saveDocument()
-                case .alertSecondButtonReturn:  // 저장 안 함
-                    continue
-                case .alertThirdButtonReturn:  // 취소
-                    return .terminateCancel
-                default:
-                    return .terminateCancel
-                }
-            }
-        }
-        return .terminateNow
+        // TabService를 통해 모든 윈도우 저장 확인
+        return TabService.shared.confirmCloseAll() ? .terminateNow : .terminateCancel
     }
 
-    // NSWindow에서 DocumentManager 찾기
+    // NSWindow에서 DocumentManager 찾기 (TabService 사용)
     private func findDocumentManager(in window: NSWindow) -> DocumentManager? {
-        // SwiftUI 뷰에서 DocumentManager 접근은 FocusedValue를 통해 하므로
-        // 여기서는 NotificationCenter를 통해 접근하거나, 윈도우별 저장소 사용
-        // 간단한 방법: 윈도우 컨트롤러나 뷰 계층에서 찾기
-        return WindowDocumentManagerRegistry.shared.documentManager(for: window)
+        return TabService.shared.managedWindows.first(where: { $0.window === window })?.controller.documentManager
     }
 
     private func showSaveConfirmationAlert(for title: String) -> NSApplication.ModalResponse {
@@ -564,101 +433,31 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
-// MARK: - 윈도우별 DocumentManager 레지스트리
-class WindowDocumentManagerRegistry {
-    static let shared = WindowDocumentManagerRegistry()
-    private var registry: [ObjectIdentifier: (window: NSWindow, manager: DocumentManager)] = [:]
-
-    func register(_ documentManager: DocumentManager, for window: NSWindow) {
-        registry[ObjectIdentifier(window)] = (window, documentManager)
-    }
-
-    func unregister(for window: NSWindow) {
-        registry.removeValue(forKey: ObjectIdentifier(window))
-    }
-
-    func documentManager(for window: NSWindow) -> DocumentManager? {
-        return registry[ObjectIdentifier(window)]?.manager
-    }
-
-    var allDocumentManagers: [DocumentManager] {
-        return registry.values.map { $0.manager }
-    }
-
-    // 이미 열린 파일인지 확인하고, 열려있으면 해당 창 반환
-    func findWindow(for fileURL: URL) -> NSWindow? {
-        for (_, entry) in registry {
-            if let openedURL = entry.manager.currentFileURL,
-               openedURL.standardizedFileURL == fileURL.standardizedFileURL {
-                return entry.window
-            }
-        }
-        return nil
-    }
-
-    // 이미 열린 파일이면 해당 창을 앞으로 가져오고 true 반환
-    func bringToFrontIfAlreadyOpen(_ fileURL: URL, closeEmptyWindow: Bool = true) -> Bool {
-        if let existingWindow = findWindow(for: fileURL) {
-            DebugLogger.shared.log("File already open: \(fileURL.lastPathComponent)")
-
-            // 해당 창을 앞으로 가져오기
-            existingWindow.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
-
-            // 알림 표시 (약간 지연 후 - 빈 창이 레지스트리에 등록될 시간 확보)
-            DebugLogger.shared.log("Scheduling alert in 0.3s")
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                DebugLogger.shared.log("Showing duplicate file alert")
-
-                let alert = NSAlert()
-                alert.messageText = "이미 열린 파일입니다"
-                alert.informativeText = "\"\(fileURL.lastPathComponent)\" 파일이 이미 다른 창에서 열려 있습니다."
-                alert.alertStyle = .informational
-                alert.addButton(withTitle: "확인")
-                alert.runModal()
-
-                DebugLogger.shared.log("Alert dismissed, closeEmptyWindow=\(closeEmptyWindow)")
-
-                // 알림 확인 후 빈 창 찾아서 닫기
-                if closeEmptyWindow {
-                    WindowDocumentManagerRegistry.shared.closeEmptyWindows(except: existingWindow)
-                }
-            }
-
-            return true
-        }
-        return false
-    }
-
-    // 빈 창 닫기 (특정 창 제외)
-    func closeEmptyWindows(except keepWindow: NSWindow) {
-        DebugLogger.shared.log("closeEmptyWindows: checking \(NSApp.windows.count) windows")
-
-        for window in NSApp.windows {
-            let dm = documentManager(for: window)
-            let isRegistered = dm != nil
-            let isEmpty = dm?.currentFileURL == nil && (dm?.content.isEmpty ?? true)
-            let isKeepWindow = window === keepWindow
-
-            DebugLogger.shared.log("  Window: registered=\(isRegistered), isEmpty=\(isEmpty), isKeepWindow=\(isKeepWindow)")
-
-            if !isKeepWindow && isRegistered && isEmpty {
-                DebugLogger.shared.log("  -> Closing this empty window")
-                window.close()
-            }
-        }
-    }
-}
-
 // MARK: - 문서 관리자
 class DocumentManager: ObservableObject {
     @Published var content: String = ""
     @Published var currentFileURL: URL?
-    @Published var isModified: Bool = false
-    @Published var windowTitle: String = "Untitled"  // TabManager.addNewTab()에서 재할당됨
+    @Published var isModified: Bool = false {
+        didSet {
+            updateWindowTitle()
+        }
+    }
+    @Published var windowTitle: String = "Untitled" {
+        didSet {
+            updateWindowTitle()
+        }
+    }
+
+    // NSWindowController 역참조 (타이틀 동기화용)
+    weak var windowController: DocumentWindowController?
 
     // 저장된 원본 내용 (수정 여부 판단용)
     private var savedContent: String = ""
+
+    // 윈도우 타이틀 업데이트
+    private func updateWindowTitle() {
+        windowController?.updateWindowTitle()
+    }
 
     // MARK: - 저장 확인 다이얼로그
 
@@ -714,7 +513,7 @@ class DocumentManager: ObservableObject {
         savedContent = ""
         currentFileURL = nil
         isModified = false
-        windowTitle = WindowTabManagerRegistry.shared.generateNextUntitledTitle()
+        windowTitle = TabService.shared.generateNextUntitledTitle()
     }
 
     func openDocument() {
@@ -727,46 +526,21 @@ class DocumentManager: ObservableObject {
             let urls = panel.urls
             guard !urls.isEmpty else { return }
 
-            // 이미 열린 파일 필터링
-            var urlsToOpen: [URL] = []
-            for url in urls {
-                if !WindowDocumentManagerRegistry.shared.bringToFrontIfAlreadyOpen(url) {
-                    urlsToOpen.append(url)
-                }
-            }
-
-            guard !urlsToOpen.isEmpty else { return }
-
             // 현재 창이 비어있으면 첫 번째 파일을 현재 창에서 열기
             if currentFileURL == nil && content.isEmpty {
-                loadFile(from: urlsToOpen[0])
-                // 나머지 파일들은 새 탭/윈도우에서 열기
-                if urlsToOpen.count > 1 {
-                    openFilesInNewTabsOrWindows(Array(urlsToOpen.dropFirst()))
+                // 첫 번째 파일 중복 확인
+                if TabService.shared.findController(for: urls[0]) == nil {
+                    loadFile(from: urls[0])
+                }
+                // 나머지 파일들은 TabService를 통해 열기
+                for url in urls.dropFirst() {
+                    TabService.shared.openDocument(url: url)
                 }
             } else {
-                // 현재 문서가 있으면 모든 파일을 새 탭/윈도우에서 열기
-                openFilesInNewTabsOrWindows(urlsToOpen)
-            }
-        }
-    }
-
-    // 여러 파일을 새 탭/윈도우에서 열기
-    private func openFilesInNewTabsOrWindows(_ urls: [URL]) {
-        let openInNewTab = UserDefaults.standard.object(forKey: "openFilesInNewTab") as? Bool ?? true
-        let currentWindow = NSApp.keyWindow
-
-        for url in urls {
-            FileOpenManager.shared.addPendingFile(url, checkDuplicate: false)
-        }
-
-        for (index, _) in urls.enumerated() {
-            DispatchQueue.main.asyncAfter(deadline: .now() + Double(index) * 0.1) {
-                if openInNewTab {
-                    NewWindowTrigger.shared.openAsTab = true
-                    NewWindowTrigger.shared.sourceWindow = currentWindow
+                // 현재 문서가 있으면 모든 파일을 TabService를 통해 열기
+                for url in urls {
+                    TabService.shared.openDocument(url: url)
                 }
-                NewWindowTrigger.shared.trigger()
             }
         }
     }

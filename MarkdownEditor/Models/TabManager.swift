@@ -1,5 +1,21 @@
 import SwiftUI
 import Combine
+import UniformTypeIdentifiers
+
+// MARK: - 탭 드래그 데이터 타입
+extension UTType {
+    static let tabItem = UTType(exportedAs: "com.zerolive.MarkdownEditor.tabItem")
+}
+
+/// 탭 드래그 앤 드롭에 사용되는 전송 데이터
+struct TabItemTransfer: Codable, Transferable {
+    let tabId: UUID
+    let windowId: String
+
+    static var transferRepresentation: some TransferRepresentation {
+        CodableRepresentation(contentType: .tabItem)
+    }
+}
 
 // MARK: - 탭 아이템
 class TabItem: ObservableObject, Identifiable {
@@ -51,7 +67,7 @@ class TabManager: ObservableObject {
         } else {
             // 새 DocumentManager 생성 시 적절한 Untitled 번호 할당
             dm = DocumentManager()
-            dm.windowTitle = WindowTabManagerRegistry.shared.generateNextUntitledTitle()
+            dm.windowTitle = TabService.shared.generateNextUntitledTitle()
         }
         let tab = TabItem(documentManager: dm)
         tabs.append(tab)

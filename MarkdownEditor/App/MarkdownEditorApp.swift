@@ -416,6 +416,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         return TabService.shared.confirmCloseAll() ? .terminateNow : .terminateCancel
     }
 
+    // MARK: - Dock 아이콘 클릭 시 윈도우 재생성
+    // App Store 가이드라인 4 - 윈도우가 없을 때 Dock 클릭 시 새 윈도우 열기
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if !flag {
+            // 열려있는 윈도우가 없으면 새 문서 생성
+            DebugLogger.shared.log("Dock icon clicked with no visible windows - creating new document")
+            TabService.shared.createNewDocument()
+        }
+        return true
+    }
+
     // NSWindow에서 DocumentManager 찾기 (TabService 사용)
     private func findDocumentManager(in window: NSWindow) -> DocumentManager? {
         return TabService.shared.managedWindows.first(where: { $0.window === window })?.controller.documentManager

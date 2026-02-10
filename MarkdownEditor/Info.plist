@@ -81,6 +81,18 @@
 				</array>
 			</dict>
 		</dict>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Markdown Editor Tab</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.zerolive.MarkdownEditor.tabItem</string>
+			<key>UTTypeTagSpecification</key>
+			<dict/>
+		</dict>
 	</array>
 </dict>
 </plist>

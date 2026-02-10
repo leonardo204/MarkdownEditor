@@ -150,8 +150,6 @@ struct PreviewSettingsView: View {
 // MARK: - 일반 설정
 struct GeneralSettingsView: View {
     @AppStorage("syncScrolling") private var syncScrolling: Bool = true
-    @AppStorage("autosave") private var autosave: Bool = true
-    @AppStorage("autosaveInterval") private var autosaveInterval: Double = 30
     @AppStorage("openFilesInNewTab") private var openFilesInNewTab: Bool = true
     @State private var showingShortcuts = false
 
@@ -183,28 +181,6 @@ struct GeneralSettingsView: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
                 Spacer()
-            }
-
-            // 자동 저장
-            HStack {
-                Text("Auto Save")
-                    .frame(width: 100, alignment: .leading)
-                Toggle("", isOn: $autosave)
-                    .labelsHidden()
-                Spacer()
-            }
-
-            // 자동 저장 간격
-            if autosave {
-                HStack {
-                    Text("Save Interval")
-                        .frame(width: 100, alignment: .leading)
-                    Slider(value: $autosaveInterval, in: 10...120, step: 10)
-                        .frame(width: 140)
-                    Text("\(Int(autosaveInterval)) sec")
-                        .foregroundColor(.secondary)
-                        .frame(width: 50, alignment: .trailing)
-                }
             }
 
             Divider()
@@ -267,7 +243,7 @@ struct AboutSettingsView: View {
 
             // 저작 정보
             VStack(spacing: 4) {
-                Text("© 2025 All rights reserved.")
+                Text("© \(Calendar.current.component(.year, from: Date())) All rights reserved.")
                     .font(.caption)
                     .foregroundColor(.secondary)
 

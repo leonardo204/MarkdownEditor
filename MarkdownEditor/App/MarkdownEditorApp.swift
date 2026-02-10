@@ -37,6 +37,7 @@ class DebugLogger {
     }
 
     func log(_ message: String, function: String = #function) {
+        #if DEBUG
         let timestamp = dateFormatter.string(from: Date())
         let logMessage = "[\(timestamp)] \(message)\n"
 
@@ -52,6 +53,7 @@ class DebugLogger {
         } else {
             try? data.write(to: url)
         }
+        #endif
     }
 }
 
@@ -83,7 +85,7 @@ struct MarkdownEditorApp: App {
 }
 
 // MARK: - App Delegate
-class AppDelegate: NSObject, NSApplicationDelegate {
+class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     private let hasAskedDefaultAppKey = "HasAskedToSetAsDefaultApp"
     private let bundleIdentifier = "com.zerolive.MarkdownEditor"
@@ -255,9 +257,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         viewMenuItem.submenu = viewMenu
         mainMenu.addItem(viewMenuItem)
 
-        // Window 메뉴
+        // Window 메뉴 (App Store 가이드라인 4 준수 - 윈도우 재오픈 메뉴 항목 필수)
         let windowMenuItem = NSMenuItem()
         let windowMenu = NSMenu(title: "Window")
+
+        // 새 윈도우 - 윈도우가 모두 닫혀있어도 항상 활성화 (target = self)
+        let windowNewItem = NSMenuItem(title: "New Window", action: #selector(newWindow(_:)), keyEquivalent: "")
+        windowNewItem.target = self
+        windowMenu.addItem(windowNewItem)
+        windowMenu.addItem(NSMenuItem.separator())
+
         windowMenu.addItem(NSMenuItem(title: "Minimize", action: #selector(NSWindow.miniaturize(_:)), keyEquivalent: "m"))
         windowMenu.addItem(NSMenuItem(title: "Zoom", action: #selector(NSWindow.zoom(_:)), keyEquivalent: ""))
         windowMenu.addItem(NSMenuItem.separator())
@@ -416,15 +425,51 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         return TabService.shared.confirmCloseAll() ? .terminateNow : .terminateCancel
     }
 
-    // MARK: - Dock 아이콘 클릭 시 윈도우 재생성
-    // App Store 가이드라인 4 - 윈도우가 없을 때 Dock 클릭 시 새 윈도우 열기
+    // MARK: - 윈도우 생명주기 관리 (App Store 가이드라인 4 준수)
+
+    /// 마지막 윈도우가 닫혀도 앱을 종료하지 않음
+    /// 사용자가 메뉴 또는 Dock 아이콘으로 새 윈도우를 열 수 있도록 유지
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        return false
+    }
+
+    /// Dock 아이콘 클릭 시 윈도우 재생성
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         if !flag {
-            // 열려있는 윈도우가 없으면 새 문서 생성
             DebugLogger.shared.log("Dock icon clicked with no visible windows - creating new document")
             TabService.shared.createNewDocument()
         }
         return true
+    }
+
+    /// Dock 아이콘 우클릭 메뉴 - 윈도우가 없을 때도 새 윈도우 생성 가능
+    func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
+        let menu = NSMenu()
+        let newWindowItem = NSMenuItem(title: "New Window", action: #selector(newWindow(_:)), keyEquivalent: "")
+        newWindowItem.target = self
+        menu.addItem(newWindowItem)
+        return menu
+    }
+
+    // MARK: - 메뉴 항목 활성화/비활성화 관리
+
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        switch menuItem.action {
+        case #selector(newDocument(_:)),
+             #selector(newWindow(_:)),
+             #selector(openDocument(_:)),
+             #selector(showPreferences(_:)):
+            // 새 문서/윈도우 생성 및 열기는 항상 활성화
+            return true
+        case #selector(saveDocument(_:)),
+             #selector(saveDocumentAs(_:)),
+             #selector(closeDocument(_:)),
+             #selector(toggleTabBar(_:)):
+            // 저장/닫기는 윈도우가 있을 때만 활성화
+            return NSApp.keyWindow != nil
+        default:
+            return true
+        }
     }
 
     // NSWindow에서 DocumentManager 찾기 (TabService 사용)
@@ -564,9 +609,6 @@ class DocumentManager: ObservableObject {
             currentFileURL = url
             isModified = false
             windowTitle = url.lastPathComponent
-
-            // quarantine 속성 제거 (파일 열 때 샌드박스가 추가하는 속성)
-            removeQuarantineAttribute(from: url)
         } catch {
             print("파일 읽기 오류: \(error)")
         }
@@ -597,19 +639,8 @@ class DocumentManager: ObservableObject {
             try content.write(to: url, atomically: true, encoding: .utf8)
             savedContent = content
             isModified = false
-
-            // quarantine 속성 제거 (샌드박스 앱에서 저장 시 추가되는 속성)
-            removeQuarantineAttribute(from: url)
         } catch {
             print("파일 저장 오류: \(error)")
-        }
-    }
-
-    // quarantine 속성 제거
-    private func removeQuarantineAttribute(from url: URL) {
-        let path = url.path
-        path.withCString { cPath in
-            removexattr(cPath, "com.apple.quarantine", 0)
         }
     }
 

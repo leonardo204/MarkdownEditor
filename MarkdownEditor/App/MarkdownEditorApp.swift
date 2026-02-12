@@ -58,29 +58,16 @@ class DebugLogger {
 }
 
 // macOS Markdown Editor 애플리케이션
-// 단일 윈도우 기반 앱 구조
+// 순수 AppKit 생명주기 - SwiftUI App 프로토콜 미사용으로 메뉴 바 충돌 방지
 
 @main
-struct MarkdownEditorApp: App {
-    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+struct MarkdownEditorApp {
+    static let appDelegate = AppDelegate()
 
-    init() {
-        // 앱 초기화 시점에 상태 복원 완전 비활성화
-        UserDefaults.standard.set(false, forKey: "NSQuitAlwaysKeepsWindows")
-        // 네이티브 윈도우 탭 활성화 (Safari, Finder 스타일)
-        NSWindow.allowsAutomaticWindowTabbing = true
-        DebugLogger.shared.log("MarkdownEditorApp.init()")
-    }
-
-    var body: some Scene {
-        // WindowGroup 제거됨 - NSWindowController가 윈도우 관리
-        // Settings Scene만 유지
-
-        #if os(macOS)
-        Settings {
-            SettingsView()
-        }
-        #endif
+    static func main() {
+        let app = NSApplication.shared
+        app.delegate = appDelegate
+        app.run()
     }
 }
 
@@ -90,10 +77,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private let hasAskedDefaultAppKey = "HasAskedToSetAsDefaultApp"
     private let bundleIdentifier = "com.zerolive.MarkdownEditor"
 
+    // 환경설정 윈도우 관리
+    private var settingsWindowController: NSWindowController?
+
     func applicationWillFinishLaunching(_ notification: Notification) {
         // 가장 먼저 실행되는 시점 - 상태 복원 비활성화
         DebugLogger.shared.log("applicationWillFinishLaunching")
         UserDefaults.standard.set(false, forKey: "NSQuitAlwaysKeepsWindows")
+
+        // 네이티브 윈도우 탭 활성화 (Safari, Finder 스타일)
+        NSWindow.allowsAutomaticWindowTabbing = true
 
         // 저장된 상태 디렉토리 삭제 (이전 세션 창 복원 방지)
         clearSavedState()
@@ -286,10 +279,26 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
         NSApp.mainMenu = mainMenu
         NSApp.windowsMenu = windowMenu
+        NSApp.helpMenu = helpMenu
     }
 
     @objc func showPreferences(_ sender: Any?) {
-        NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
+        // 기존 윈도우가 있으면 재사용
+        if let existingController = settingsWindowController, let window = existingController.window {
+            window.makeKeyAndOrderFront(nil)
+            return
+        }
+
+        let hostingController = NSHostingController(rootView: SettingsView())
+        let window = NSWindow(contentViewController: hostingController)
+        window.title = "Settings"
+        window.styleMask = [.titled, .closable]
+        window.setFrameAutosaveName("SettingsWindow")
+        window.center()
+
+        settingsWindowController = NSWindowController(window: window)
+        settingsWindowController?.showWindow(nil)
+        window.makeKeyAndOrderFront(nil)
     }
 
     @objc func toggleTabBar(_ sender: Any?) {
@@ -301,8 +310,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     @objc func newDocument(_ sender: Any?) {
         DebugLogger.shared.log("Menu: New Document")
 
-        // 현재 윈도우가 있으면 탭으로 추가
+        // 현재 윈도우가 문서 윈도우이면 탭으로 추가 (Settings 윈도우 등 제외)
         if let keyWindow = NSApp.keyWindow,
+           TabService.shared.managedWindows.contains(where: { $0.window === keyWindow }),
            let newWindow = TabService.shared.newWindowForTab(orderFront: false) {
             keyWindow.addTabbedWindow(newWindow, ordered: .above)
             newWindow.makeKeyAndOrderFront(nil)

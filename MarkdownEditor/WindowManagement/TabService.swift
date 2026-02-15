@@ -52,9 +52,6 @@ final class TabService {
             existingController.window?.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
             DebugLogger.shared.log("TabService: File already open, activating: \(url.lastPathComponent)")
-
-            // 중복 파일 알림
-            showDuplicateFileAlert(filename: url.lastPathComponent)
             return existingController
         }
 
@@ -175,16 +172,4 @@ final class TabService {
         return true
     }
 
-    // MARK: - 중복 파일 알림
-
-    private func showDuplicateFileAlert(filename: String) {
-        DispatchQueue.main.async {
-            let alert = NSAlert()
-            alert.messageText = "이미 열린 파일입니다"
-            alert.informativeText = "\"\(filename)\" 파일이 이미 다른 창에서 열려 있습니다."
-            alert.alertStyle = .informational
-            alert.addButton(withTitle: "확인")
-            alert.runModal()
-        }
-    }
 }

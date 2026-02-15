@@ -2,7 +2,10 @@
 
 ## 프로젝트 개요
 
-macOS용 마크다운 에디터 앱 (SwiftUI)
+macOS용 마크다운 에디터 앱 (AppKit 생명주기 + SwiftUI 뷰)
+- 현재 버전: v1.3.0, Build 15
+- 파서: apple/swift-markdown (SPM) AST 기반
+- 아키텍처: 순수 AppKit 생명주기 + SwiftUI 뷰, TabService 싱글톤, 네이티브 윈도우 탭
 
 ## 빌드 및 실행
 
@@ -90,15 +93,42 @@ xcodebuild -project MarkdownEditor.xcodeproj -scheme MarkdownEditor -configurati
 
 ```
 MarkdownEditor/
-├── App/                 # 앱 진입점
-├── Assets.xcassets/     # 앱 아이콘, AccentColor
-├── Models/              # 데이터 모델
-├── Views/               # SwiftUI 뷰
-├── Services/            # 마크다운 처리 등
-├── Resources/           # CSS 등 리소스
+├── App/
+│   └── MarkdownEditorApp.swift     # AppDelegate, DocumentManager, 메뉴 구성
+├── Assets.xcassets/                # 앱 아이콘, AccentColor
+├── Models/
+│   └── TabManager.swift            # 탭 관리
+├── Views/
+│   ├── ContentView.swift           # EditorPreviewSplitView, OutlineView, StatusBar
+│   ├── DocumentContentView.swift   # 루트 SwiftUI 뷰 (에디터+프리뷰 통합)
+│   ├── SimpleEditorView.swift      # NSTextView 기반 에디터
+│   ├── FindReplaceView.swift       # 찾기/바꾸기 (NSPanel + FindReplaceManager)
+│   ├── PreviewView.swift           # WKWebView 프리뷰
+│   ├── ToolbarView.swift           # 마크다운 서식 툴바
+│   ├── TabBarView.swift            # 탭바 UI
+│   └── SettingsView.swift          # 설정
+├── Services/
+│   └── MarkdownProcessor.swift     # swift-markdown AST → HTML 변환
+├── WindowManagement/
+│   ├── TabService.swift            # 윈도우/문서 관리 싱글톤
+│   └── DocumentWindowController.swift # 윈도우 컨트롤러
+├── Resources/                      # CSS 등 리소스
 ├── Info.plist
 └── MarkdownEditor.entitlements
 ```
+
+## 주요 기능 (v1.3.0)
+
+- swift-markdown 기반 정확한 마크다운 렌더링
+- 찾기/바꾸기 (별도 NSPanel, 매치 하이라이트, 순환 검색)
+- 자동 저장 (3초 디바운스)
+- 아웃라인 사이드바 (현재 위치 하이라이트, 스크롤 연동)
+- 포커스 모드 / 타자기 모드
+- PDF/HTML 내보내기
+- 이미지 드래그 앤 드롭 / 붙여넣기
+- 외부 파일 변경 감지 & 자동 반영
+- Cmd+1~9 탭 전환, 서식 단축키 (Cmd+B/I/K/E)
+- 최근 파일 목록
 
 ## 유용한 명령어
 

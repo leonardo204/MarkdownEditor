@@ -1,6 +1,6 @@
 import SwiftUI
 import UniformTypeIdentifiers
-import CoreServices
+import WebKit
 
 // MARK: - 디버그 로거
 class DebugLogger {
@@ -74,11 +74,14 @@ struct MarkdownEditorApp {
 // MARK: - App Delegate
 class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
-    private let hasAskedDefaultAppKey = "HasAskedToSetAsDefaultApp"
-    private let bundleIdentifier = "com.zerolive.MarkdownEditor"
+    private let recentFilesKey = "RecentFiles"
+    private let maxRecentFiles = 10
 
     // 환경설정 윈도우 관리
     private var settingsWindowController: NSWindowController?
+
+    // 최근 파일 메뉴
+    private var recentFilesMenu: NSMenu?
 
     func applicationWillFinishLaunching(_ notification: Notification) {
         // 가장 먼저 실행되는 시점 - 상태 복원 비활성화
@@ -97,9 +100,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
         // 메뉴 설정
         setupMainMenu()
-
-        // 첫 실행 시 기본 앱 설정 제안
-        checkAndOfferDefaultApp()
 
         // 첫 윈도우 생성 (TabService가 윈도우 관리)
         if TabService.shared.managedWindowsCount == 0 {
@@ -205,6 +205,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         openItem.target = self
         fileMenu.addItem(openItem)
 
+        // 최근 파일
+        let recentMenuItem = NSMenuItem(title: "최근 파일 열기", action: nil, keyEquivalent: "")
+        let recentMenu = NSMenu(title: "최근 파일 열기")
+        recentMenuItem.submenu = recentMenu
+        fileMenu.addItem(recentMenuItem)
+        self.recentFilesMenu = recentMenu
+        rebuildRecentFilesMenu()
+
         fileMenu.addItem(NSMenuItem.separator())
 
         // 닫기
@@ -225,6 +233,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         saveAsItem.target = self
         fileMenu.addItem(saveAsItem)
 
+        fileMenu.addItem(NSMenuItem.separator())
+
+        let exportHTMLItem = NSMenuItem(title: "HTML로 내보내기...", action: #selector(exportAsHTML(_:)), keyEquivalent: "")
+        exportHTMLItem.target = self
+        fileMenu.addItem(exportHTMLItem)
+
+        let exportPDFItem = NSMenuItem(title: "PDF로 내보내기...", action: #selector(exportAsPDF(_:)), keyEquivalent: "")
+        exportPDFItem.target = self
+        fileMenu.addItem(exportPDFItem)
+
         fileMenuItem.submenu = fileMenu
         mainMenu.addItem(fileMenuItem)
 
@@ -238,8 +256,53 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         editMenu.addItem(NSMenuItem(title: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c"))
         editMenu.addItem(NSMenuItem(title: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v"))
         editMenu.addItem(NSMenuItem(title: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a"))
+        editMenu.addItem(NSMenuItem.separator())
+
+        // 찾기 & 바꾸기 (커스텀 찾기 패널 — Notification 기반)
+        editMenu.addItem(NSMenuItem(title: "찾기...", action: #selector(showFindPanel(_:)), keyEquivalent: "f"))
+
+        let replaceItem = NSMenuItem(title: "찾기 및 바꾸기...", action: #selector(showReplacePanel(_:)), keyEquivalent: "f")
+        replaceItem.keyEquivalentModifierMask = [.command, .option]
+        editMenu.addItem(replaceItem)
+
+        editMenu.addItem(NSMenuItem(title: "다음 찾기", action: #selector(findNext(_:)), keyEquivalent: "g"))
+
+        let findPrevItem = NSMenuItem(title: "이전 찾기", action: #selector(findPrevious(_:)), keyEquivalent: "G")
+        findPrevItem.keyEquivalentModifierMask = [.command, .shift]
+        editMenu.addItem(findPrevItem)
+
         editMenuItem.submenu = editMenu
         mainMenu.addItem(editMenuItem)
+
+        // Format 메뉴
+        let formatMenuItem = NSMenuItem()
+        let formatMenu = NSMenu(title: "Format")
+
+        let boldItem = NSMenuItem(title: "볼드", action: #selector(formatBold(_:)), keyEquivalent: "b")
+        boldItem.target = self
+        formatMenu.addItem(boldItem)
+
+        let italicItem = NSMenuItem(title: "이탤릭", action: #selector(formatItalic(_:)), keyEquivalent: "i")
+        italicItem.target = self
+        formatMenu.addItem(italicItem)
+
+        let linkItem = NSMenuItem(title: "링크 삽입", action: #selector(formatLink(_:)), keyEquivalent: "k")
+        linkItem.target = self
+        formatMenu.addItem(linkItem)
+
+        formatMenu.addItem(NSMenuItem.separator())
+
+        let codeItem = NSMenuItem(title: "인라인 코드", action: #selector(formatInlineCode(_:)), keyEquivalent: "e")
+        codeItem.target = self
+        formatMenu.addItem(codeItem)
+
+        let strikeItem = NSMenuItem(title: "취소선", action: #selector(formatStrikethrough(_:)), keyEquivalent: "d")
+        strikeItem.keyEquivalentModifierMask = [.command, .shift]
+        strikeItem.target = self
+        formatMenu.addItem(strikeItem)
+
+        formatMenuItem.submenu = formatMenu
+        mainMenu.addItem(formatMenuItem)
 
         // View 메뉴
         let viewMenuItem = NSMenuItem()
@@ -247,6 +310,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         let toggleTabBarItem = NSMenuItem(title: "탭 바 표시/숨기기", action: #selector(toggleTabBar(_:)), keyEquivalent: "")
         toggleTabBarItem.target = self
         viewMenu.addItem(toggleTabBarItem)
+        let toggleOutlineItem = NSMenuItem(title: "아웃라인 표시/숨기기", action: #selector(toggleOutline(_:)), keyEquivalent: "O")
+        toggleOutlineItem.keyEquivalentModifierMask = [.command, .shift]
+        toggleOutlineItem.target = self
+        viewMenu.addItem(toggleOutlineItem)
+        let toggleTypewriterItem = NSMenuItem(title: "Typewriter Mode", action: #selector(toggleTypewriterMode(_:)), keyEquivalent: "T")
+        toggleTypewriterItem.keyEquivalentModifierMask = [.command, .shift]
+        toggleTypewriterItem.target = self
+        viewMenu.addItem(toggleTypewriterItem)
         viewMenuItem.submenu = viewMenu
         mainMenu.addItem(viewMenuItem)
 
@@ -268,6 +339,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         windowMenu.addItem(mergeItem)
         windowMenu.addItem(NSMenuItem.separator())
         windowMenu.addItem(NSMenuItem(title: "Bring All to Front", action: #selector(NSApplication.arrangeInFront(_:)), keyEquivalent: ""))
+        windowMenu.addItem(NSMenuItem.separator())
+
+        // Cmd+1~9: 탭 전환
+        for i in 1...9 {
+            let tabItem = NSMenuItem(title: "탭 \(i)로 이동", action: #selector(selectTabByNumber(_:)), keyEquivalent: "\(i)")
+            tabItem.tag = i
+            tabItem.target = self
+            windowMenu.addItem(tabItem)
+        }
+
         windowMenuItem.submenu = windowMenu
         mainMenu.addItem(windowMenuItem)
 
@@ -303,6 +384,25 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     @objc func toggleTabBar(_ sender: Any?) {
         NSApp.keyWindow?.toggleTabBar(nil)
+    }
+
+    @objc func toggleOutline(_ sender: Any?) {
+        NotificationCenter.default.post(name: NSNotification.Name("ToggleOutline"), object: nil)
+    }
+
+    @objc func toggleTypewriterMode(_ sender: Any?) {
+        NotificationCenter.default.post(name: NSNotification.Name("ToggleTypewriterMode"), object: nil)
+    }
+
+    @objc func selectTabByNumber(_ sender: NSMenuItem) {
+        guard let keyWindow = NSApp.keyWindow,
+              let tabbedWindows = keyWindow.tabbedWindows,
+              !tabbedWindows.isEmpty else { return }
+
+        let index = sender.tag - 1  // tag는 1-based, 배열은 0-based
+        guard index >= 0 && index < tabbedWindows.count else { return }
+
+        tabbedWindows[index].makeKeyAndOrderFront(nil)
     }
 
     // MARK: - 메뉴 액션
@@ -362,72 +462,280 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
     }
 
-    // MARK: - 기본 앱 설정 확인
+    // MARK: - 내보내기
 
-    private func checkAndOfferDefaultApp() {
-        // 이미 물어봤으면 스킵
-        if UserDefaults.standard.bool(forKey: hasAskedDefaultAppKey) {
-            return
+    @objc func exportAsHTML(_ sender: Any?) {
+        guard let keyWindow = NSApp.keyWindow,
+              let controller = TabService.shared.managedWindows.first(where: { $0.window === keyWindow })?.controller else { return }
+
+        let dm = controller.documentManager
+        let processor = MarkdownProcessor()
+        let htmlBody = processor.convertToHTML(dm.content)
+
+        // CSS 로드
+        let cssContent: String
+        if let cssURL = Bundle.main.url(forResource: "preview", withExtension: "css"),
+           let css = try? String(contentsOf: cssURL, encoding: .utf8) {
+            cssContent = css
+        } else {
+            cssContent = "body { font-family: -apple-system, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }"
         }
 
-        // 현재 .md 파일의 기본 앱 확인
-        let markdownUTI = "net.daringfireball.markdown" as CFString
-        if let currentHandler = LSCopyDefaultRoleHandlerForContentType(markdownUTI, .all)?.takeRetainedValue() as String? {
-            // 이미 이 앱이 기본 앱이면 스킵
-            if currentHandler == bundleIdentifier {
-                UserDefaults.standard.set(true, forKey: hasAskedDefaultAppKey)
-                return
+        let fullHTML = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+        <meta charset="utf-8">
+        <title>\(dm.windowTitle)</title>
+        <style>\(cssContent)</style>
+        </head>
+        <body>
+        \(htmlBody)
+        </body>
+        </html>
+        """
+
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.html]
+        panel.nameFieldStringValue = (dm.currentFileURL?.deletingPathExtension().lastPathComponent ?? dm.windowTitle) + ".html"
+
+        if panel.runModal() == .OK, let url = panel.url {
+            do {
+                try fullHTML.write(to: url, atomically: true, encoding: .utf8)
+                DebugLogger.shared.log("Exported HTML: \(url.lastPathComponent)")
+            } catch {
+                let alert = NSAlert()
+                alert.messageText = "HTML 내보내기 실패"
+                alert.informativeText = error.localizedDescription
+                alert.runModal()
             }
         }
+    }
 
-        // 기본 앱 설정 다이얼로그 표시
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [self] in
-            showDefaultAppAlert()
+    @objc func exportAsPDF(_ sender: Any?) {
+        guard let keyWindow = NSApp.keyWindow,
+              let controller = TabService.shared.managedWindows.first(where: { $0.window === keyWindow })?.controller else { return }
+
+        let dm = controller.documentManager
+        let processor = MarkdownProcessor()
+        let htmlBody = processor.convertToHTML(dm.content)
+
+        // CSS 로드
+        let cssContent: String
+        if let cssURL = Bundle.main.url(forResource: "preview", withExtension: "css"),
+           let css = try? String(contentsOf: cssURL, encoding: .utf8) {
+            cssContent = css
+        } else {
+            cssContent = "body { font-family: -apple-system, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }"
+        }
+
+        let fullHTML = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+        <meta charset="utf-8">
+        <style>
+        \(cssContent)
+        @media print { body { margin: 0; } }
+        </style>
+        </head>
+        <body>
+        \(htmlBody)
+        </body>
+        </html>
+        """
+
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.pdf]
+        panel.nameFieldStringValue = (dm.currentFileURL?.deletingPathExtension().lastPathComponent ?? dm.windowTitle) + ".pdf"
+
+        if panel.runModal() == .OK, let url = panel.url {
+            // WKWebView를 사용하여 PDF 렌더링
+            let config = WKWebViewConfiguration()
+            let webView = WKWebView(frame: NSRect(x: 0, y: 0, width: 595, height: 842), configuration: config)
+            webView.loadHTMLString(fullHTML, baseURL: Bundle.main.resourceURL)
+
+            // 렌더링 완료 대기를 위한 타이머
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                let pdfConfig = WKPDFConfiguration()
+                pdfConfig.rect = CGRect(x: 0, y: 0, width: 595.28, height: 841.89) // A4
+
+                webView.createPDF(configuration: pdfConfig) { result in
+                    DispatchQueue.main.async {
+                        switch result {
+                        case .success(let data):
+                            do {
+                                try data.write(to: url)
+                                DebugLogger.shared.log("Exported PDF: \(url.lastPathComponent)")
+                            } catch {
+                                let alert = NSAlert()
+                                alert.messageText = "PDF 저장 실패"
+                                alert.informativeText = error.localizedDescription
+                                alert.runModal()
+                            }
+                        case .failure(let error):
+                            let alert = NSAlert()
+                            alert.messageText = "PDF 생성 실패"
+                            alert.informativeText = error.localizedDescription
+                            alert.runModal()
+                        }
+                    }
+                }
+            }
         }
     }
 
-    private func showDefaultAppAlert() {
-        let alert = NSAlert()
-        alert.messageText = "Markdown Editor를 기본 앱으로 설정하시겠습니까?"
-        alert.informativeText = ".md 및 .markdown 파일을 더블클릭하면 이 앱으로 열립니다."
-        alert.alertStyle = .informational
-        alert.addButton(withTitle: "기본 앱으로 설정")
-        alert.addButton(withTitle: "나중에")
-        alert.addButton(withTitle: "다시 묻지 않기")
+    // MARK: - 찾기/바꾸기 액션 (커스텀 패널)
 
-        let response = alert.runModal()
+    @objc func showFindPanel(_ sender: Any?) {
+        NotificationCenter.default.post(name: NSNotification.Name("ShowFindPanel"), object: nil)
+    }
 
-        switch response {
-        case .alertFirstButtonReturn:  // 기본 앱으로 설정
-            setAsDefaultApp()
-            UserDefaults.standard.set(true, forKey: hasAskedDefaultAppKey)
-        case .alertSecondButtonReturn:  // 나중에
-            // 다음 실행 시 다시 물어봄
-            break
-        case .alertThirdButtonReturn:  // 다시 묻지 않기
-            UserDefaults.standard.set(true, forKey: hasAskedDefaultAppKey)
-        default:
-            break
+    @objc func showReplacePanel(_ sender: Any?) {
+        NotificationCenter.default.post(name: NSNotification.Name("ShowReplacePanel"), object: nil)
+    }
+
+    @objc func findNext(_ sender: Any?) {
+        NotificationCenter.default.post(name: NSNotification.Name("FindNext"), object: nil)
+    }
+
+    @objc func findPrevious(_ sender: Any?) {
+        NotificationCenter.default.post(name: NSNotification.Name("FindPrevious"), object: nil)
+    }
+
+    // MARK: - 서식 단축키 액션
+
+    private func currentEditorTextView() -> NSTextView? {
+        guard let keyWindow = NSApp.keyWindow else { return nil }
+        // First responder가 NSTextView이면 직접 사용
+        if let textView = keyWindow.firstResponder as? NSTextView {
+            return textView
+        }
+        return nil
+    }
+
+    private func wrapSelectionWith(prefix: String, suffix: String) {
+        guard let textView = currentEditorTextView() else { return }
+        let selectedRange = textView.selectedRange()
+        let text = (textView.string as NSString)
+
+        if selectedRange.length > 0 {
+            // 선택된 텍스트를 래핑
+            let selected = text.substring(with: selectedRange)
+            let replacement = "\(prefix)\(selected)\(suffix)"
+            textView.insertText(replacement, replacementRange: selectedRange)
+            // 래핑된 텍스트를 다시 선택
+            textView.setSelectedRange(NSRange(location: selectedRange.location + prefix.count, length: selectedRange.length))
+        } else {
+            // 선택 없으면 커서 위치에 삽입하고 커서를 사이에 배치
+            let replacement = "\(prefix)\(suffix)"
+            textView.insertText(replacement, replacementRange: selectedRange)
+            textView.setSelectedRange(NSRange(location: selectedRange.location + prefix.count, length: 0))
         }
     }
 
-    private func setAsDefaultApp() {
-        let markdownUTI = "net.daringfireball.markdown" as CFString
-        let publicTextUTI = "public.plain-text" as CFString
+    @objc func formatBold(_ sender: Any?) {
+        wrapSelectionWith(prefix: "**", suffix: "**")
+    }
 
-        // .md, .markdown 파일 연결
-        LSSetDefaultRoleHandlerForContentType(markdownUTI, .all, bundleIdentifier as CFString)
+    @objc func formatItalic(_ sender: Any?) {
+        wrapSelectionWith(prefix: "*", suffix: "*")
+    }
 
-        // 추가로 일반 텍스트도 에디터로 설정 (선택적)
-        LSSetDefaultRoleHandlerForContentType(publicTextUTI, .editor, bundleIdentifier as CFString)
+    @objc func formatLink(_ sender: Any?) {
+        guard let textView = currentEditorTextView() else { return }
+        let selectedRange = textView.selectedRange()
+        let text = (textView.string as NSString)
 
-        // 완료 알림
-        let successAlert = NSAlert()
-        successAlert.messageText = "설정 완료"
-        successAlert.informativeText = "Markdown Editor가 .md 파일의 기본 앱으로 설정되었습니다."
-        successAlert.alertStyle = .informational
-        successAlert.addButton(withTitle: "확인")
-        successAlert.runModal()
+        if selectedRange.length > 0 {
+            let selected = text.substring(with: selectedRange)
+            let replacement = "[\(selected)](url)"
+            textView.insertText(replacement, replacementRange: selectedRange)
+            // "url" 부분을 선택
+            let urlStart = selectedRange.location + selected.count + 3
+            textView.setSelectedRange(NSRange(location: urlStart, length: 3))
+        } else {
+            let replacement = "[](url)"
+            textView.insertText(replacement, replacementRange: selectedRange)
+            textView.setSelectedRange(NSRange(location: selectedRange.location + 1, length: 0))
+        }
+    }
+
+    @objc func formatInlineCode(_ sender: Any?) {
+        wrapSelectionWith(prefix: "`", suffix: "`")
+    }
+
+    @objc func formatStrikethrough(_ sender: Any?) {
+        wrapSelectionWith(prefix: "~~", suffix: "~~")
+    }
+
+    // MARK: - 최근 파일 관리
+
+    func addToRecentFiles(_ url: URL) {
+        var recentFiles = UserDefaults.standard.stringArray(forKey: recentFilesKey) ?? []
+        let path = url.path
+
+        // 이미 있으면 맨 앞으로 이동
+        recentFiles.removeAll { $0 == path }
+        recentFiles.insert(path, at: 0)
+
+        // 최대 개수 제한
+        if recentFiles.count > maxRecentFiles {
+            recentFiles = Array(recentFiles.prefix(maxRecentFiles))
+        }
+
+        UserDefaults.standard.set(recentFiles, forKey: recentFilesKey)
+        rebuildRecentFilesMenu()
+    }
+
+    private func rebuildRecentFilesMenu() {
+        guard let menu = recentFilesMenu else { return }
+        menu.removeAllItems()
+
+        let recentFiles = UserDefaults.standard.stringArray(forKey: recentFilesKey) ?? []
+
+        if recentFiles.isEmpty {
+            let emptyItem = NSMenuItem(title: "최근 파일 없음", action: nil, keyEquivalent: "")
+            emptyItem.isEnabled = false
+            menu.addItem(emptyItem)
+        } else {
+            for path in recentFiles {
+                let url = URL(fileURLWithPath: path)
+                let item = NSMenuItem(title: url.lastPathComponent, action: #selector(openRecentFile(_:)), keyEquivalent: "")
+                item.representedObject = url
+                item.target = self
+                menu.addItem(item)
+            }
+            menu.addItem(NSMenuItem.separator())
+            let clearItem = NSMenuItem(title: "최근 기록 지우기", action: #selector(clearRecentFiles(_:)), keyEquivalent: "")
+            clearItem.target = self
+            menu.addItem(clearItem)
+        }
+    }
+
+    @objc func openRecentFile(_ sender: NSMenuItem) {
+        guard let url = sender.representedObject as? URL else { return }
+        if FileManager.default.fileExists(atPath: url.path) {
+            TabService.shared.openDocument(url: url)
+        } else {
+            // 파일이 없으면 목록에서 제거
+            var recentFiles = UserDefaults.standard.stringArray(forKey: recentFilesKey) ?? []
+            recentFiles.removeAll { $0 == url.path }
+            UserDefaults.standard.set(recentFiles, forKey: recentFilesKey)
+            rebuildRecentFilesMenu()
+
+            let alert = NSAlert()
+            alert.messageText = "파일을 찾을 수 없습니다"
+            alert.informativeText = "\"\(url.lastPathComponent)\" 파일이 이동되었거나 삭제되었습니다."
+            alert.alertStyle = .warning
+            alert.addButton(withTitle: "확인")
+            alert.runModal()
+        }
+    }
+
+    @objc func clearRecentFiles(_ sender: Any?) {
+        UserDefaults.standard.removeObject(forKey: recentFilesKey)
+        rebuildRecentFilesMenu()
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
@@ -474,9 +782,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         case #selector(saveDocument(_:)),
              #selector(saveDocumentAs(_:)),
              #selector(closeDocument(_:)),
-             #selector(toggleTabBar(_:)):
-            // 저장/닫기는 윈도우가 있을 때만 활성화
+             #selector(toggleTabBar(_:)),
+             #selector(exportAsHTML(_:)),
+             #selector(exportAsPDF(_:)):
+            // 저장/닫기/내보내기는 윈도우가 있을 때만 활성화
             return NSApp.keyWindow != nil
+        case #selector(selectTabByNumber(_:)):
+            // 탭 전환은 해당 탭이 존재할 때만 활성화
+            guard let keyWindow = NSApp.keyWindow,
+                  let tabbedWindows = keyWindow.tabbedWindows else { return false }
+            return menuItem.tag <= tabbedWindows.count
         default:
             return true
         }
@@ -485,6 +800,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     // NSWindow에서 DocumentManager 찾기 (TabService 사용)
     private func findDocumentManager(in window: NSWindow) -> DocumentManager? {
         return TabService.shared.managedWindows.first(where: { $0.window === window })?.controller.documentManager
+    }
+
+    // MARK: - 앱 비활성화 시 파일 감시 일시정지 / 활성화 시 재개
+    func applicationDidBecomeActive(_ notification: Notification) {
+        // 모든 열린 문서의 파일 변경 확인
+        for managed in TabService.shared.managedWindows {
+            managed.controller.documentManager.checkForExternalChanges()
+        }
     }
 
     private func showSaveConfirmationAlert(for title: String) -> NSApplication.ModalResponse {
@@ -519,6 +842,14 @@ class DocumentManager: ObservableObject {
 
     // 저장된 원본 내용 (수정 여부 판단용)
     private var savedContent: String = ""
+
+    // 파일 변경 감지
+    private var fileMonitorSource: DispatchSourceFileSystemObject?
+    private var lastKnownModDate: Date?
+
+    // 자동 저장
+    private var autoSaveTimer: Timer?
+    private let autoSaveDelay: TimeInterval = 3.0
 
     // 윈도우 타이틀 업데이트
     private func updateWindowTitle() {
@@ -619,9 +950,122 @@ class DocumentManager: ObservableObject {
             currentFileURL = url
             isModified = false
             windowTitle = url.lastPathComponent
+            startFileMonitoring()
+            // 최근 파일 목록에 추가
+            (NSApp.delegate as? AppDelegate)?.addToRecentFiles(url)
         } catch {
             print("파일 읽기 오류: \(error)")
         }
+    }
+
+    // MARK: - 파일 변경 감지
+
+    func startFileMonitoring() {
+        stopFileMonitoring()
+        guard let url = currentFileURL else { return }
+
+        // 현재 수정일 기록
+        lastKnownModDate = fileModificationDate(for: url)
+
+        let fd = open(url.path, O_EVTONLY)
+        guard fd >= 0 else { return }
+
+        let source = DispatchSource.makeFileSystemObjectSource(
+            fileDescriptor: fd,
+            eventMask: [.write, .rename, .delete],
+            queue: .main
+        )
+
+        source.setEventHandler { [weak self] in
+            self?.checkForExternalChanges()
+        }
+
+        source.setCancelHandler {
+            close(fd)
+        }
+
+        source.resume()
+        fileMonitorSource = source
+    }
+
+    func stopFileMonitoring() {
+        autoSaveTimer?.invalidate()
+        fileMonitorSource?.cancel()
+        fileMonitorSource = nil
+    }
+
+    func checkForExternalChanges() {
+        guard let url = currentFileURL else { return }
+
+        let currentModDate = fileModificationDate(for: url)
+        guard let lastDate = lastKnownModDate, let newDate = currentModDate,
+              newDate > lastDate else { return }
+
+        lastKnownModDate = newDate
+
+        do {
+            let externalContent = try String(contentsOf: url, encoding: .utf8)
+
+            // 내용이 실제로 다른 경우만 처리
+            guard externalContent != savedContent else { return }
+
+            if isModified {
+                // 사용자가 수정 중이면 알림
+                DispatchQueue.main.async { [weak self] in
+                    self?.showExternalChangeAlert(newContent: externalContent)
+                }
+            } else {
+                // 수정 중이 아니면 자동 반영
+                DispatchQueue.main.async { [weak self] in
+                    self?.content = externalContent
+                    self?.savedContent = externalContent
+                    self?.isModified = false
+                }
+            }
+        } catch {
+            DebugLogger.shared.log("외부 변경 감지 실패: \(error)")
+        }
+    }
+
+    private func showExternalChangeAlert(newContent: String) {
+        let alert = NSAlert()
+        alert.messageText = "파일이 외부에서 변경되었습니다"
+        alert.informativeText = "\"\(windowTitle)\" 파일이 다른 프로그램에서 수정되었습니다. 다시 불러오시겠습니까?"
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "다시 불러오기")
+        alert.addButton(withTitle: "무시")
+
+        let response = alert.runModal()
+        if response == .alertFirstButtonReturn {
+            content = newContent
+            savedContent = newContent
+            isModified = false
+        }
+    }
+
+    private func fileModificationDate(for url: URL) -> Date? {
+        try? FileManager.default.attributesOfItem(atPath: url.path)[.modificationDate] as? Date
+    }
+
+    // MARK: - 자동 저장
+
+    private func scheduleAutoSave() {
+        autoSaveTimer?.invalidate()
+        guard currentFileURL != nil, isModified else { return }
+        autoSaveTimer = Timer.scheduledTimer(withTimeInterval: autoSaveDelay, repeats: false) { [weak self] _ in
+            self?.performAutoSave()
+        }
+    }
+
+    private func performAutoSave() {
+        guard isModified, let url = currentFileURL else { return }
+        saveFile(to: url)
+        DebugLogger.shared.log("Auto-saved: \(url.lastPathComponent)")
+    }
+
+    deinit {
+        autoSaveTimer?.invalidate()
+        stopFileMonitoring()
     }
 
     func saveDocument() {
@@ -649,6 +1093,8 @@ class DocumentManager: ObservableObject {
             try content.write(to: url, atomically: true, encoding: .utf8)
             savedContent = content
             isModified = false
+            // 저장 후 수정일 갱신 (자체 저장을 외부 변경으로 감지하지 않도록)
+            lastKnownModDate = fileModificationDate(for: url)
         } catch {
             print("파일 저장 오류: \(error)")
         }
@@ -658,5 +1104,8 @@ class DocumentManager: ObservableObject {
         content = newContent
         // savedContent와 비교하여 수정 여부 판단
         isModified = (content != savedContent)
+        if isModified {
+            scheduleAutoSave()
+        }
     }
 }

@@ -14,6 +14,7 @@
 		WINMGT001AF62F00413E11465 /* TabService.swift in Sources */ = {isa = PBXBuildFile; fileRef = WINMGT001AF62F00413E11464 /* TabService.swift */; };
 		WINMGT002AF62F00413E11465 /* DocumentWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = WINMGT002AF62F00413E11464 /* DocumentWindowController.swift */; };
 		DOCCONTENT001AF62F0041465 /* DocumentContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DOCCONTENT001AF62F0041464 /* DocumentContentView.swift */; };
+		FINDREPL001AF62F00413E11465 /* FindReplaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FINDREPL001AF62F00413E11464 /* FindReplaceView.swift */; };
 		1FA64B912F0253A000947CB6 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1FA64B902F0253A000947CB6 /* Assets.xcassets */; };
 		3E486589278BDF8C46EBCB90 /* MarkdownEditorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 338049E96A635FBB0255D8C9 /* MarkdownEditorTests.swift */; };
 		44071A816C7DA46E51C4C5EE /* EditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74A050CE0D0294B0B6278F2B /* EditorView.swift */; };
@@ -26,6 +27,7 @@
 		AD8CE50151D6505BAE5766B4 /* PreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 371AD5E138DBC5FE6F19FFE8 /* PreviewView.swift */; };
 		B8DCFEFBDBB5CDBED45A3DAD /* ToolbarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99BBFC134DD17A6E3FA5C9D5 /* ToolbarView.swift */; };
 		DAE4B4DE88376BEFC7328D81 /* preview-dark.css in Resources */ = {isa = PBXBuildFile; fileRef = 039C03EE31BC468EF80789A1 /* preview-dark.css */; };
+		SWIFTMD003AF62F00413E11465 /* Markdown in Frameworks */ = {isa = PBXBuildFile; productRef = SWIFTMD002AF62F00413E11464 /* Markdown */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -37,6 +39,17 @@
 			remoteInfo = MarkdownEditor;
 		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		SWIFTMD004AF62F00413E11464 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				SWIFTMD003AF62F00413E11465 /* Markdown in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXFileReference section */
 		039C03EE31BC468EF80789A1 /* preview-dark.css */ = {isa = PBXFileReference; lastKnownFileType = text.css; path = "preview-dark.css"; sourceTree = "<group>"; };
@@ -54,6 +67,7 @@
 		5CAE6BA3D9B5447DADFF76CF /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		74A050CE0D0294B0B6278F2B /* EditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorView.swift; sourceTree = "<group>"; };
 		99BBFC134DD17A6E3FA5C9D5 /* ToolbarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolbarView.swift; sourceTree = "<group>"; };
+		FINDREPL001AF62F00413E11464 /* FindReplaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FindReplaceView.swift; sourceTree = "<group>"; };
 		A8C248FE483DBE9D113EFEB2 /* MarkdownDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownDocument.swift; sourceTree = "<group>"; };
 		B7B4206DF36D6DE5F8B6A115 /* MarkdownEditor.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MarkdownEditor.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BE95E5BBF83EADAD8BEE08B1 /* MarkdownProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownProcessor.swift; sourceTree = "<group>"; };
@@ -154,6 +168,7 @@
 				4B9B583FEA2240924E3E652F /* ContentView.swift */,
 				DOCCONTENT001AF62F0041464 /* DocumentContentView.swift */,
 				74A050CE0D0294B0B6278F2B /* EditorView.swift */,
+				FINDREPL001AF62F00413E11464 /* FindReplaceView.swift */,
 				371AD5E138DBC5FE6F19FFE8 /* PreviewView.swift */,
 				495CA61B8869CB463712583F /* SettingsView.swift */,
 				333A7F3D8C26C27C63EB5F62 /* SimpleEditorView.swift */,
@@ -190,6 +205,7 @@
 			buildConfigurationList = 2ADAB0B6E28651D018EB3DC1 /* Build configuration list for PBXNativeTarget "MarkdownEditor" */;
 			buildPhases = (
 				7155CA5D99E0D119DE1263D1 /* Sources */,
+				SWIFTMD004AF62F00413E11464 /* Frameworks */,
 				F06E2A61ED185AB0DC4B2795 /* Resources */,
 			);
 			buildRules = (
@@ -198,6 +214,7 @@
 			);
 			name = MarkdownEditor;
 			packageProductDependencies = (
+				SWIFTMD002AF62F00413E11464 /* Markdown */,
 			);
 			productName = MarkdownEditor;
 			productReference = B7B4206DF36D6DE5F8B6A115 /* MarkdownEditor.app */;
@@ -240,6 +257,9 @@
 			);
 			mainGroup = 6D97F1538DA47CE3779EADC7;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				SWIFTMD001AF62F00413E11464 /* XCRemoteSwiftPackageReference "swift-markdown" */,
+			);
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -280,6 +300,7 @@
 				DOCCONTENT001AF62F0041465 /* DocumentContentView.swift in Sources */,
 				WINMGT002AF62F00413E11465 /* DocumentWindowController.swift in Sources */,
 				44071A816C7DA46E51C4C5EE /* EditorView.swift in Sources */,
+				FINDREPL001AF62F00413E11465 /* FindReplaceView.swift in Sources */,
 				0EA35FF78604BFA321D598CA /* MarkdownDocument.swift in Sources */,
 				8DF0852F3E63BF572DED3F41 /* MarkdownEditorApp.swift in Sources */,
 				5FCCEAED9CCC9070BECEC2A9 /* MarkdownProcessor.swift in Sources */,
@@ -464,7 +485,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 13;
+				CURRENT_PROJECT_VERSION = 15;
 				DEVELOPMENT_TEAM = XU8HS9JUTS;
 				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = MarkdownEditor/Info.plist;
@@ -473,7 +494,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 1.2.0;
+				MARKETING_VERSION = 1.3.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.zerolive.MarkdownEditor;
 				PRODUCT_NAME = MarkdownEditor;
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -491,7 +512,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 13;
+				CURRENT_PROJECT_VERSION = 15;
 				DEVELOPMENT_TEAM = XU8HS9JUTS;
 				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = MarkdownEditor/Info.plist;
@@ -500,7 +521,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 1.2.0;
+				MARKETING_VERSION = 1.3.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.zerolive.MarkdownEditor;
 				PRODUCT_NAME = MarkdownEditor;
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -540,6 +561,25 @@
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		SWIFTMD001AF62F00413E11464 /* XCRemoteSwiftPackageReference "swift-markdown" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/swiftlang/swift-markdown.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.4.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		SWIFTMD002AF62F00413E11464 /* Markdown */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = SWIFTMD001AF62F00413E11464 /* XCRemoteSwiftPackageReference "swift-markdown" */;
+			productName = Markdown;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = F4DB4F261C0AA1A1C0A5CC50 /* Project object */;
 }

@@ -159,7 +159,7 @@ struct EditorPreviewSplitView: View {
     var onCursorLineChange: ((Int) -> Void)?
     var showOutline: Bool = false
     var currentLine: Int = 0
-    var onSelectHeading: ((Int) -> Void)?
+    var onSelectHeading: ((Int, Int) -> Void)?
     var focusMode: Bool = false
     var typewriterMode: Bool = false
 
@@ -170,7 +170,8 @@ struct EditorPreviewSplitView: View {
                 OutlineView(
                     content: documentManager.content,
                     currentLine: currentLine,
-                    onSelectHeading: onSelectHeading
+                    onSelectHeading: onSelectHeading,
+                    scrollTarget: $appState.outlineScrollTarget
                 )
                 Divider()
             }
@@ -368,7 +369,8 @@ struct OutlineItem: Identifiable {
 struct OutlineView: View {
     let content: String
     var currentLine: Int = 0  // 에디터 커서의 현재 라인 (0-based)
-    var onSelectHeading: ((Int) -> Void)?  // line number callback
+    var onSelectHeading: ((Int, Int) -> Void)?  // (line number, heading index) callback
+    @Binding var scrollTarget: OutlineScrollTarget
 
     // 현재 커서 위치에 해당하는 헤딩 라인 (마지막 헤딩 ≤ currentLine)
     private var activeHeadingLine: Int? {
@@ -424,6 +426,13 @@ struct OutlineView: View {
                     .font(.headline)
                     .foregroundColor(.secondary)
                 Spacer()
+                Picker("", selection: $scrollTarget) {
+                    ForEach(OutlineScrollTarget.allCases, id: \.self) { target in
+                        Text(target.displayName).tag(target)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 120)
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
@@ -443,10 +452,10 @@ struct OutlineView: View {
             } else {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 2) {
-                        ForEach(headings) { item in
+                        ForEach(Array(headings.enumerated()), id: \.element.id) { index, item in
                             let isActive = item.line == activeHeadingLine
                             Button(action: {
-                                onSelectHeading?(item.line)
+                                onSelectHeading?(item.line, index)
                             }) {
                                 HStack(spacing: 4) {
                                     Text(String(repeating: "  ", count: item.level - 1))

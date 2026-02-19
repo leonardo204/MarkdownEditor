@@ -278,6 +278,7 @@ struct MarkdownNSTextView: NSViewRepresentable {
         var onCursorLineChange: ((Int) -> Void)?
         var scrollSyncManager: ScrollSyncManager?
         var isUpdating = false
+        private var lastSelectionTime: CFTimeInterval = 0
 
         init(content: Binding<String>, lineCount: Binding<Int>, onContentChange: ((String) -> Void)?) {
             self.content = content
@@ -296,8 +297,10 @@ struct MarkdownNSTextView: NSViewRepresentable {
             // 현재 라인 번호 계산
             let text = textView.string
             let cursorPosition = textView.selectedRange().location
-            let textUpToCursor = (text as NSString).substring(to: min(cursorPosition, text.count))
+            let nsText = text as NSString
+            let textUpToCursor = nsText.substring(to: min(cursorPosition, nsText.length))
             let currentLine = textUpToCursor.components(separatedBy: "\n").count - 1  // 0-based
+            lastSelectionTime = CACurrentMediaTime()
             onCursorLineChange?(currentLine)
 
             // 포커스 모드 / 타자기 모드
@@ -327,6 +330,12 @@ struct MarkdownNSTextView: NSViewRepresentable {
         @objc func scrollViewDidScroll(_ notification: Notification) {
             scrollSyncManager?.editorDidScroll()
 
+            // 커서 이동 직후(아웃라인 클릭 등)에는 스크롤 기반 업데이트 억제
+            // textViewDidChangeSelection이 이미 정확한 커서 라인을 보고했으므로
+            // scrollViewDidScroll이 화면 상단 라인으로 덮어쓰는 것을 방지
+            let now = CACurrentMediaTime()
+            if now - lastSelectionTime < 0.3 { return }
+
             // 스크롤 시 보이는 첫 줄 기준으로 아웃라인 업데이트
             guard let clipView = notification.object as? NSClipView,
                   let textView = clipView.documentView as? NSTextView,
@@ -339,7 +348,8 @@ struct MarkdownNSTextView: NSViewRepresentable {
             let charIndex = layoutManager.characterIndexForGlyph(at: glyphIndex)
 
             let text = textView.string
-            let textUpToVisible = (text as NSString).substring(to: min(charIndex, text.count))
+            let nsText = text as NSString
+            let textUpToVisible = nsText.substring(to: min(charIndex, nsText.length))
             let visibleLine = textUpToVisible.components(separatedBy: "\n").count - 1
             onCursorLineChange?(visibleLine)
         }

@@ -21,6 +21,9 @@ class AppState: ObservableObject {
     // MARK: - 탭 설정
     @Published var openFilesInNewTab: Bool = true  // true: 새 탭, false: 새 윈도우
 
+    // MARK: - 아웃라인 설정
+    @Published var outlineScrollTarget: OutlineScrollTarget = .editor
+
     // MARK: - 초기화
     init() {
         loadSettings()
@@ -50,6 +53,12 @@ class AppState: ObservableObject {
 
         // 탭 설정 로드 (기본값: 새 탭에서 열기)
         openFilesInNewTab = defaults.object(forKey: "openFilesInNewTab") as? Bool ?? true
+
+        // 아웃라인 설정 로드
+        if let rawValue = defaults.string(forKey: "outlineScrollTarget"),
+           let target = OutlineScrollTarget(rawValue: rawValue) {
+            outlineScrollTarget = target
+        }
     }
 
     // MARK: - 설정 저장
@@ -62,6 +71,7 @@ class AppState: ObservableObject {
         defaults.set(Float(fontSize), forKey: "fontSize")
         defaults.set(fontName, forKey: "fontName")
         defaults.set(openFilesInNewTab, forKey: "openFilesInNewTab")
+        defaults.set(outlineScrollTarget.rawValue, forKey: "outlineScrollTarget")
     }
 }
 
@@ -182,6 +192,19 @@ enum EditorTheme: String, CaseIterable {
         switch self {
         case .dark: return NSColor(red: 0.451, green: 0.475, blue: 0.545, alpha: 1.0)  // #73798B
         case .light: return NSColor(red: 0.596, green: 0.616, blue: 0.663, alpha: 1.0) // #989DA9
+        }
+    }
+}
+
+// MARK: - 아웃라인 스크롤 대상
+enum OutlineScrollTarget: String, CaseIterable {
+    case editor
+    case preview
+
+    var displayName: String {
+        switch self {
+        case .editor: return "Editor"
+        case .preview: return "Preview"
         }
     }
 }

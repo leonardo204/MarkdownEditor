@@ -59,8 +59,13 @@ struct DocumentContentView: View {
             },
             showOutline: showOutline,
             currentLine: currentLine,
-            onSelectHeading: { lineNumber in
-                scrollToLine(lineNumber)
+            onSelectHeading: { lineNumber, headingIndex in
+                switch appState.outlineScrollTarget {
+                case .editor:
+                    scrollToLine(lineNumber)
+                case .preview:
+                    scrollPreviewToHeading(headingIndex)
+                }
             },
             focusMode: focusMode,
             typewriterMode: typewriterMode
@@ -119,21 +124,46 @@ struct DocumentContentView: View {
     private func scrollToLine(_ lineNumber: Int) {
         // EditorTextView의 스크롤 동기화 매니저를 통해 스크롤
         guard let scrollView = scrollSyncManager.editorScrollView,
-              let textView = scrollView.documentView as? NSTextView else { return }
+              let textView = scrollView.documentView as? NSTextView,
+              let layoutManager = textView.layoutManager,
+              let textContainer = textView.textContainer else { return }
 
-        let text = textView.string
-        let lines = text.components(separatedBy: "\n")
+        let nsText = textView.string as NSString
+        let lines = (textView.string).components(separatedBy: "\n")
 
-        // 해당 라인의 문자 위치 계산
+        // 해당 라인의 문자 위치 계산 (UTF-16 기준)
         var charIndex = 0
         for i in 0..<min(lineNumber, lines.count) {
-            charIndex += lines[i].count + 1 // +1 for newline
+            charIndex += (lines[i] as NSString).length + 1 // +1 for newline
         }
 
-        // 해당 위치로 스크롤
-        let range = NSRange(location: min(charIndex, text.count), length: 0)
-        textView.scrollRangeToVisible(range)
+        // 커서를 먼저 이동 (scrollViewDidScroll 경합 방지)
+        let location = min(charIndex, nsText.length)
+        let range = NSRange(location: location, length: 0)
         textView.setSelectedRange(range)
+
+        // 해당 라인이 에디터 맨 위에 오도록 스크롤
+        let glyphRange = layoutManager.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
+        let lineRect = layoutManager.boundingRect(forGlyphRange: glyphRange, in: textContainer)
+        let targetY = lineRect.origin.y + textView.textContainerInset.height
+        scrollView.contentView.setBoundsOrigin(NSPoint(x: 0, y: targetY))
+        scrollView.reflectScrolledClipView(scrollView.contentView)
+    }
+
+    // MARK: - 프리뷰 헤딩으로 스크롤
+
+    private func scrollPreviewToHeading(_ headingIndex: Int) {
+        guard let webView = scrollSyncManager.previewWebView else { return }
+
+        let js = """
+        (function() {
+            var headings = document.querySelectorAll('h1,h2,h3,h4,h5,h6');
+            if (headings.length > \(headingIndex)) {
+                headings[\(headingIndex)].scrollIntoView({behavior:'smooth', block:'start'});
+            }
+        })();
+        """
+        webView.evaluateJavaScript(js, completionHandler: nil)
     }
 
     // MARK: - 드래그 앤 드롭 처리 (파일)

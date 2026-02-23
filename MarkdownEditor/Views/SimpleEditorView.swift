@@ -301,6 +301,7 @@ struct MarkdownNSTextView: NSViewRepresentable {
             let textUpToCursor = nsText.substring(to: min(cursorPosition, nsText.length))
             let currentLine = textUpToCursor.components(separatedBy: "\n").count - 1  // 0-based
             lastSelectionTime = CACurrentMediaTime()
+            DebugLogger.shared.log("[Outline] textViewDidChangeSelection: cursorPos:\(cursorPosition), line:\(currentLine), lastSelectionTime:\(lastSelectionTime)")
             onCursorLineChange?(currentLine)
 
             // 포커스 모드 / 타자기 모드
@@ -334,7 +335,17 @@ struct MarkdownNSTextView: NSViewRepresentable {
             // textViewDidChangeSelection이 이미 정확한 커서 라인을 보고했으므로
             // scrollViewDidScroll이 화면 상단 라인으로 덮어쓰는 것을 방지
             let now = CACurrentMediaTime()
-            if now - lastSelectionTime < 0.3 { return }
+            let elapsed = now - lastSelectionTime
+            if elapsed < 0.3 {
+                DebugLogger.shared.log("[Outline] scrollViewDidScroll SUPPRESSED by selection (elapsed:\(String(format: "%.3f", elapsed))s < 0.3s)")
+                return
+            }
+
+            // 아웃라인 클릭 후 프리뷰 smooth scroll 동안 에디터 스크롤 기반 라인 업데이트 억제 (1초)
+            if let outlineTime = scrollSyncManager?.lastOutlineClickTime, now - outlineTime < 1.0 {
+                DebugLogger.shared.log("[Outline] scrollViewDidScroll SUPPRESSED by outlineClick (elapsed:\(String(format: "%.3f", now - outlineTime))s < 1.0s)")
+                return
+            }
 
             // 스크롤 시 보이는 첫 줄 기준으로 아웃라인 업데이트
             guard let clipView = notification.object as? NSClipView,
@@ -351,6 +362,7 @@ struct MarkdownNSTextView: NSViewRepresentable {
             let nsText = text as NSString
             let textUpToVisible = nsText.substring(to: min(charIndex, nsText.length))
             let visibleLine = textUpToVisible.components(separatedBy: "\n").count - 1
+            DebugLogger.shared.log("[Outline] scrollViewDidScroll → visibleLine:\(visibleLine) (elapsed:\(String(format: "%.3f", elapsed))s)")
             onCursorLineChange?(visibleLine)
         }
     }

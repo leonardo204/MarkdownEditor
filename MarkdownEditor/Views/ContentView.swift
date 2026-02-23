@@ -15,6 +15,9 @@ class ScrollSyncManager: ObservableObject {
     private var currentSource: ScrollSource = .none
     private var lastSyncTime: CFTimeInterval = 0
 
+    // 아웃라인 클릭 시 설정 — 프리뷰 smooth scroll 동안 에디터 스크롤 기반 라인 업데이트 억제
+    var lastOutlineClickTime: CFTimeInterval = 0
+
     // 참조
     weak var editorScrollView: NSScrollView?
     weak var previewWebView: WKWebView?
@@ -455,6 +458,7 @@ struct OutlineView: View {
                         ForEach(Array(headings.enumerated()), id: \.element.id) { index, item in
                             let isActive = item.line == activeHeadingLine
                             Button(action: {
+                                DebugLogger.shared.log("[Outline] Button tapped: index:\(index), line:\(item.line), title:'\(item.title)', activeHeadingLine:\(String(describing: activeHeadingLine)), currentLine:\(currentLine)")
                                 onSelectHeading?(item.line, index)
                             }) {
                                 HStack(spacing: 4) {

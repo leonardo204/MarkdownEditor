@@ -3,7 +3,7 @@
 ## 프로젝트 개요
 
 macOS용 마크다운 에디터 앱 (AppKit 생명주기 + SwiftUI 뷰)
-- 현재 버전: v1.3.0, Build 15
+- 현재 버전: v1.3.2, Build 17
 - 파서: apple/swift-markdown (SPM) AST 기반
 - 아키텍처: 순수 AppKit 생명주기 + SwiftUI 뷰, TabService 싱글톤, 네이티브 윈도우 탭
 
@@ -117,7 +117,20 @@ MarkdownEditor/
 └── MarkdownEditor.entitlements
 ```
 
-## 주요 기능 (v1.3.0)
+## 변경 이력
+
+### v1.3.2 (Build 17)
+- fix: 아웃라인 클릭 시 하이라이트가 잘못된 항목에 고정되는 버그 수정
+  - 원인: 프리뷰 smooth scroll 동기화가 에디터 스크롤을 변경 → `currentLine` 덮어쓰기
+  - 해결: `moveCursorToLine` 분리 + `lastOutlineClickTime` 기반 1초 억제 가드
+
+### v1.3.1 (Build 16)
+- feat: 아웃라인 클릭 스크롤 대상 설정 및 인덱스 버그 수정
+
+### v1.3.0 (Build 15)
+- feat: 대규모 기능 추가 (찾기/바꾸기, 아웃라인, 포커스모드, 내보내기 등)
+
+## 주요 기능
 
 - swift-markdown 기반 정확한 마크다운 렌더링
 - 찾기/바꾸기 (별도 NSPanel, 매치 하이라이트, 순환 검색)
@@ -129,6 +142,18 @@ MarkdownEditor/
 - 외부 파일 변경 감지 & 자동 반영
 - Cmd+1~9 탭 전환, 서식 단축키 (Cmd+B/I/K/E)
 - 최근 파일 목록
+
+## 아키텍처 노트
+
+### 스크롤 동기화 & 아웃라인 하이라이트
+- `ScrollSyncManager`: 에디터 ↔ 프리뷰 간 퍼센트 기반 스크롤 동기화
+- `currentLine` (0-based): 아웃라인 하이라이트의 기준값
+- **업데이트 경로 2가지:**
+  1. `textViewDidChangeSelection` → 커서 이동 시 (정확)
+  2. `scrollViewDidScroll` → 에디터 스크롤 시 화면 상단 기준 (근사)
+- **경합 방지 가드:**
+  - `lastSelectionTime` (0.3초): 커서 이동 직후 스크롤 기반 덮어쓰기 방지
+  - `lastOutlineClickTime` (1.0초): 아웃라인 클릭 → 프리뷰 smooth scroll 동기화 덮어쓰기 방지
 
 ## 유용한 명령어
 

@@ -55,17 +55,24 @@ struct DocumentContentView: View {
             },
             findReplaceManager: findReplaceManager,
             onCursorLineChange: { line in
+                DebugLogger.shared.log("[Outline] onCursorLineChange: \(line), previous currentLine: \(currentLine)")
                 currentLine = line
             },
             showOutline: showOutline,
             currentLine: currentLine,
             onSelectHeading: { lineNumber, headingIndex in
+                DebugLogger.shared.log("[Outline] === HEADING CLICKED === line:\(lineNumber), index:\(headingIndex), target:\(appState.outlineScrollTarget), currentLine(before):\(currentLine)")
+                // 아웃라인 클릭 타임스탬프 기록 (프리뷰 smooth scroll 동안 스크롤 기반 덮어쓰기 방지)
+                scrollSyncManager.lastOutlineClickTime = CACurrentMediaTime()
+                moveCursorToLine(lineNumber)
+                DebugLogger.shared.log("[Outline] after moveCursorToLine, currentLine:\(currentLine)")
                 switch appState.outlineScrollTarget {
                 case .editor:
-                    scrollToLine(lineNumber)
+                    scrollEditorToLine(lineNumber)
                 case .preview:
                     scrollPreviewToHeading(headingIndex)
                 }
+                DebugLogger.shared.log("[Outline] after scroll, currentLine:\(currentLine)")
             },
             focusMode: focusMode,
             typewriterMode: typewriterMode
@@ -119,30 +126,47 @@ struct DocumentContentView: View {
         htmlContent = markdownProcessor.convertToHTML(documentManager.content)
     }
 
-    // MARK: - 헤딩으로 스크롤
+    // MARK: - 커서 이동 (스크롤 없이)
+    // 에디터 커서만 해당 라인으로 이동 → textViewDidChangeSelection 발동
+    // → currentLine 업데이트 + lastSelectionTime 설정 (scrollViewDidScroll 덮어쓰기 방지)
+    private func moveCursorToLine(_ lineNumber: Int) {
+        guard let scrollView = scrollSyncManager.editorScrollView,
+              let textView = scrollView.documentView as? NSTextView else {
+            DebugLogger.shared.log("[Outline] moveCursorToLine FAILED: no scrollView or textView")
+            return
+        }
 
-    private func scrollToLine(_ lineNumber: Int) {
-        // EditorTextView의 스크롤 동기화 매니저를 통해 스크롤
+        let nsText = textView.string as NSString
+        let lines = textView.string.components(separatedBy: "\n")
+
+        var charIndex = 0
+        for i in 0..<min(lineNumber, lines.count) {
+            charIndex += (lines[i] as NSString).length + 1
+        }
+
+        let location = min(charIndex, nsText.length)
+        DebugLogger.shared.log("[Outline] moveCursorToLine(\(lineNumber)) → charIndex:\(charIndex), location:\(location), totalLength:\(nsText.length)")
+        textView.setSelectedRange(NSRange(location: location, length: 0))
+        DebugLogger.shared.log("[Outline] setSelectedRange done, actual selectedRange: \(textView.selectedRange())")
+    }
+
+    // MARK: - 에디터 헤딩으로 스크롤
+    private func scrollEditorToLine(_ lineNumber: Int) {
         guard let scrollView = scrollSyncManager.editorScrollView,
               let textView = scrollView.documentView as? NSTextView,
               let layoutManager = textView.layoutManager,
               let textContainer = textView.textContainer else { return }
 
-        let nsText = textView.string as NSString
-        let lines = (textView.string).components(separatedBy: "\n")
-
-        // 해당 라인의 문자 위치 계산 (UTF-16 기준)
+        let lines = textView.string.components(separatedBy: "\n")
         var charIndex = 0
         for i in 0..<min(lineNumber, lines.count) {
-            charIndex += (lines[i] as NSString).length + 1 // +1 for newline
+            charIndex += (lines[i] as NSString).length + 1
         }
 
-        // 커서를 먼저 이동 (scrollViewDidScroll 경합 방지)
+        let nsText = textView.string as NSString
         let location = min(charIndex, nsText.length)
         let range = NSRange(location: location, length: 0)
-        textView.setSelectedRange(range)
 
-        // 해당 라인이 에디터 맨 위에 오도록 스크롤
         let glyphRange = layoutManager.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
         let lineRect = layoutManager.boundingRect(forGlyphRange: glyphRange, in: textContainer)
         let targetY = lineRect.origin.y + textView.textContainerInset.height

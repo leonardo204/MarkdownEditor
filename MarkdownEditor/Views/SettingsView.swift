@@ -243,7 +243,7 @@ struct AboutSettingsView: View {
 
             // 저작 정보
             VStack(spacing: 4) {
-                Text("© \(Calendar.current.component(.year, from: Date())) All rights reserved.")
+                Text("© \(String(Calendar.current.component(.year, from: Date()))) All rights reserved.")
                     .font(.caption)
                     .foregroundColor(.secondary)
 
@@ -321,6 +321,7 @@ struct KeyboardShortcutsView: View {
 
                     // 보기 관련
                     ShortcutSection(title: "View", icon: "eye", shortcuts: [
+                        ShortcutItem(keys: "⇧⌘ O", description: "Toggle Outline"),
                         ShortcutItem(keys: "⌘ ,", description: "Settings")
                     ])
                 }

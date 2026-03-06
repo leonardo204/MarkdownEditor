@@ -1,5 +1,12 @@
 # 변경 이력
 
+## v1.3.3 (Build 18)
+- feat: 설정 변경 시 에디터에 실시간 반영 (테마, 폰트, 폰트 크기, 라인 번호)
+  - AppState에서 UserDefaults.didChangeNotification 구독
+- fix: About 탭 연도 표시에 천 단위 구분 기호(,) 표시되는 문제 수정
+- fix: 특정 마크다운 콘텐츠 붙여넣기 시 swift-markdown parseBlockDirectives 크래시 수정
+- feat: 단축키 안내에 아웃라인 토글(⇧⌘O) 추가
+
 ## v1.3.2 (Build 17)
 - fix: 아웃라인 클릭 시 하이라이트가 잘못된 항목에 고정되는 버그 수정
   - 원인: 프리뷰 smooth scroll 동기화가 에디터 스크롤을 변경 → `currentLine` 덮어쓰기

@@ -24,9 +24,12 @@ class AppState: ObservableObject {
     // MARK: - 아웃라인 설정
     @Published var outlineScrollTarget: OutlineScrollTarget = .editor
 
+    private var cancellables = Set<AnyCancellable>()
+
     // MARK: - 초기화
     init() {
         loadSettings()
+        observeUserDefaults()
     }
 
     // MARK: - 설정 로드
@@ -58,6 +61,52 @@ class AppState: ObservableObject {
         if let rawValue = defaults.string(forKey: "outlineScrollTarget"),
            let target = OutlineScrollTarget(rawValue: rawValue) {
             outlineScrollTarget = target
+        }
+    }
+
+    // MARK: - UserDefaults 변경 관찰 (Settings에서 @AppStorage 변경 시 실시간 반영)
+    private func observeUserDefaults() {
+        NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.syncFromUserDefaults()
+            }
+            .store(in: &cancellables)
+    }
+
+    private func syncFromUserDefaults() {
+        let defaults = UserDefaults.standard
+
+        // 에디터 테마
+        if let rawValue = defaults.string(forKey: "editorTheme"),
+           let theme = EditorTheme(rawValue: rawValue),
+           editorTheme != theme {
+            editorTheme = theme
+        }
+
+        // 프리뷰 테마
+        if let rawValue = defaults.string(forKey: "previewTheme"),
+           let theme = PreviewTheme(rawValue: rawValue),
+           previewTheme != theme {
+            previewTheme = theme
+        }
+
+        // 폰트 크기
+        let savedFontSize = defaults.double(forKey: "fontSize")
+        if savedFontSize > 0 && fontSize != CGFloat(savedFontSize) {
+            fontSize = CGFloat(savedFontSize)
+        }
+
+        // 폰트 이름
+        let savedFontName = defaults.string(forKey: "fontName") ?? "SF Mono"
+        if fontName != savedFontName {
+            fontName = savedFontName
+        }
+
+        // 라인 번호
+        let savedShowLineNumbers = defaults.object(forKey: "showLineNumbers") as? Bool ?? true
+        if showLineNumbers != savedShowLineNumbers {
+            showLineNumbers = savedShowLineNumbers
         }
     }
 

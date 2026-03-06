@@ -9,7 +9,7 @@ class MarkdownProcessor {
     // MARK: - 메인 변환 메서드
     func convertToHTML(_ markdown: String) -> String {
         // swift-markdown으로 파싱 (GFM 확장 활성화)
-        let document = Document(parsing: markdown, options: [.parseBlockDirectives])
+        let document = Document(parsing: markdown)
 
         // AST → HTML 변환 (원본 소스를 전달하여 단일/이중 틸드 구별)
         var visitor = HTMLVisitor(sourceMarkdown: markdown)

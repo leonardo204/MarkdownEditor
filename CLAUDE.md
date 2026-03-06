@@ -3,7 +3,7 @@
 ## 프로젝트 개요
 
 macOS용 마크다운 에디터 앱 (AppKit 생명주기 + SwiftUI 뷰)
-- 현재 버전: v1.3.2, Build 17
+- 현재 버전: v1.3.3, Build 18
 - 파서: apple/swift-markdown (SPM) AST 기반
 - 아키텍처: 순수 AppKit 생명주기 + SwiftUI 뷰, TabService 싱글톤, 네이티브 윈도우 탭
 

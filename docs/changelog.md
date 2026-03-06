@@ -1,5 +1,20 @@
 # 변경 이력
 
+## v1.4.0 (Build 18)
+- feat: Quick Look Preview Extension 추가 (Premium)
+  - Finder에서 마크다운 파일 스페이스바로 풀 렌더링 미리보기
+  - Mermaid 다이어그램, KaTeX 수식, 코드 하이라이팅 지원
+  - 시스템 다크/라이트 테마 자동 적용
+  - Non-premium: 원본 텍스트 + 업그레이드 안내 배너
+- feat: StoreKit 2 인앱 구입 (비소모품)
+  - StoreManager 싱글톤 (구매/복원/트랜잭션 리스너)
+  - App Group을 통한 앱-Extension 구매 상태 동기화
+- feat: Premium 설정 탭 추가 (첫 번째 탭)
+  - 한영 지원, 구매/복원 UI, 구매 완료 축하 애니메이션
+- feat: MarkdownCore 로컬 Swift 패키지 추출
+  - MarkdownProcessor, HTMLTemplate, PreviewTheme 공유
+  - JS/CSS 리소스 번들링 (Mermaid, Highlight.js, KaTeX, Pako)
+
 ## v1.3.3 (Build 18)
 - feat: 설정 변경 시 에디터에 실시간 반영 (테마, 폰트, 폰트 크기, 라인 번호)
   - AppState에서 UserDefaults.didChangeNotification 구독

@@ -7,6 +7,11 @@ import AppKit
 struct SettingsView: View {
     var body: some View {
         TabView {
+            PremiumSettingsView()
+                .tabItem {
+                    Label("Premium", systemImage: "star.fill")
+                }
+
             EditorSettingsView()
                 .tabItem {
                     Label("Editor", systemImage: "pencil")
@@ -27,7 +32,7 @@ struct SettingsView: View {
                     Label("About", systemImage: "info.circle")
                 }
         }
-        .frame(width: 420, height: 300)
+        .frame(width: 420, height: 340)
     }
 }
 
@@ -208,6 +213,130 @@ struct GeneralSettingsView: View {
         .sheet(isPresented: $showingShortcuts) {
             KeyboardShortcutsView()
         }
+    }
+}
+
+// MARK: - Premium 설정
+struct PremiumSettingsView: View {
+    @ObservedObject private var storeManager = StoreManager.shared
+    @State private var showConfetti = false
+
+    var body: some View {
+        VStack(spacing: 16) {
+            if storeManager.isPremium {
+                // 구매 완료 상태
+                VStack(spacing: 14) {
+                    ZStack {
+                        Image(systemName: "checkmark.seal.fill")
+                            .font(.system(size: 48))
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [.green, .mint],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .scaleEffect(showConfetti ? 1.0 : 0.5)
+                            .opacity(showConfetti ? 1.0 : 0.0)
+                            .animation(.spring(response: 0.5, dampingFraction: 0.6), value: showConfetti)
+
+                        // 축하 이펙트
+                        ForEach(0..<6, id: \.self) { i in
+                            Image(systemName: ["star.fill", "sparkle", "heart.fill", "star.fill", "sparkle", "heart.fill"][i])
+                                .font(.system(size: 10))
+                                .foregroundColor([.yellow, .orange, .pink, .purple, .cyan, .mint][i])
+                                .offset(
+                                    x: showConfetti ? CGFloat([-30, 28, -20, 25, -32, 22][i]) : 0,
+                                    y: showConfetti ? CGFloat([-25, -20, 15, 18, 5, -28][i]) : 0
+                                )
+                                .opacity(showConfetti ? 0.8 : 0.0)
+                                .scaleEffect(showConfetti ? 1.0 : 0.0)
+                                .animation(.spring(response: 0.6, dampingFraction: 0.5).delay(Double(i) * 0.05), value: showConfetti)
+                        }
+                    }
+                    .frame(height: 60)
+
+                    Text("Premium Activated!")
+                        .font(.headline)
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [.green, .mint],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+
+                    Text("감사합니다! Quick Look 풀 미리보기를 포함한\n모든 프리미엄 기능을 사용할 수 있습니다.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+
+                    Text("Thank you! All premium features including\nQuick Look full preview are now available.")
+                        .font(.caption2)
+                        .foregroundColor(.secondary.opacity(0.7))
+                        .multilineTextAlignment(.center)
+                }
+                .onAppear { showConfetti = true }
+            } else {
+                // 미구매 상태
+                VStack(spacing: 12) {
+                    Image(systemName: "eye.fill")
+                        .font(.system(size: 32))
+                        .foregroundColor(.accentColor)
+
+                    Text("Quick Look Preview")
+                        .font(.headline)
+
+                    Text("Finder에서 마크다운 파일을 스페이스바로 미리보기할 수 있습니다.\nMermaid, KaTeX, 코드 하이라이팅을 지원합니다.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(3)
+
+                    Text("Preview markdown files in Finder with spacebar.\nSupports Mermaid, KaTeX, and code highlighting.")
+                        .font(.caption2)
+                        .foregroundColor(.secondary.opacity(0.7))
+                        .multilineTextAlignment(.center)
+                        .lineLimit(3)
+
+                    if let product = storeManager.products.first {
+                        Button(action: {
+                            Task { await storeManager.purchase(product) }
+                        }) {
+                            HStack {
+                                if storeManager.purchaseInProgress {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                        .padding(.trailing, 4)
+                                }
+                                Text("Purchase — \(product.displayPrice)")
+                            }
+                            .frame(minWidth: 160)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(storeManager.purchaseInProgress)
+                    } else {
+                        Text("상품 정보를 불러오는 중...")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+
+                    Button("Restore Purchase") {
+                        Task { await storeManager.restorePurchases() }
+                    }
+                    .buttonStyle(.link)
+                    .font(.caption)
+                }
+
+                if let error = storeManager.errorMessage {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundColor(.red)
+                }
+            }
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

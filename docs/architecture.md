@@ -22,7 +22,8 @@ MarkdownEditor/
 │   ├── TabBarView.swift            # 탭바 UI
 │   └── SettingsView.swift          # 설정
 ├── Services/
-│   └── MarkdownProcessor.swift     # swift-markdown AST → HTML 변환
+│   ├── MarkdownProcessor.swift     # swift-markdown AST → HTML 변환
+│   └── StoreManager.swift          # StoreKit 2 IAP 관리 (싱글톤)
 ├── WindowManagement/
 │   ├── TabService.swift            # 윈도우/문서 관리 싱글톤
 │   └── DocumentWindowController.swift # 윈도우 컨트롤러
@@ -31,6 +32,20 @@ MarkdownEditor/
 │   └── preview-dark.css            # 다크 테마 프리뷰 스타일
 ├── Info.plist
 └── MarkdownEditor.entitlements
+
+MarkdownQuickLook/                   # Quick Look Preview Extension
+├── PreviewViewController.swift      # QL 미리보기 (Premium/Non-premium 분기)
+├── Base.lproj/PreviewViewController.xib
+├── Info.plist                       # QLSupportedContentTypes
+└── MarkdownQuickLook.entitlements   # Sandbox + App Group
+
+Packages/MarkdownCore/               # 공유 Swift 패키지
+├── Package.swift
+└── Sources/MarkdownCore/
+    ├── MarkdownProcessor.swift      # AST → HTML (앱/Extension 공유)
+    ├── HTMLTemplate.swift           # HTML 래핑 (CDN/로컬 리소스)
+    ├── PreviewTheme.swift           # 테마 enum + resourceBundleURL
+    └── Resources/                   # JS/CSS 번들 (Mermaid, KaTeX 등)
 ```
 
 ## 핵심 아키텍처

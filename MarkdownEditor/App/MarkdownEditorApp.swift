@@ -182,26 +182,32 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         let fileMenuItem = NSMenuItem()
         let fileMenu = NSMenu(title: "File")
 
-        // 새 윈도우 (Cmd+N) — macOS 표준
-        let newWindowItem = NSMenuItem(title: "새 윈도우", action: #selector(newWindow(_:)), keyEquivalent: "n")
-        newWindowItem.target = self
-        fileMenu.addItem(newWindowItem)
-
-        // 새 탭 (Cmd+T) — macOS 표준
-        let newTabItem = NSMenuItem(title: "새 탭", action: #selector(newDocument(_:)), keyEquivalent: "t")
+        // 새 탭 (Cmd+T)
+        let newTabItem = NSMenuItem(title: "새 탭 (New Tab)", action: #selector(newDocument(_:)), keyEquivalent: "t")
         newTabItem.target = self
         fileMenu.addItem(newTabItem)
+
+        // 새 문서 (Cmd+N)
+        let newDocItem = NSMenuItem(title: "새 문서 (New Document)", action: #selector(newDocument(_:)), keyEquivalent: "n")
+        newDocItem.target = self
+        fileMenu.addItem(newDocItem)
+
+        // 새 윈도우
+        let newWindowItem = NSMenuItem(title: "새 윈도우 (New Windows)", action: #selector(newWindow(_:)), keyEquivalent: "N")
+        newWindowItem.keyEquivalentModifierMask = [.command, .shift]
+        newWindowItem.target = self
+        fileMenu.addItem(newWindowItem)
 
         fileMenu.addItem(NSMenuItem.separator())
 
         // 열기
-        let openItem = NSMenuItem(title: "열기...", action: #selector(openDocument(_:)), keyEquivalent: "o")
+        let openItem = NSMenuItem(title: "열기 (Opening with)...", action: #selector(openDocument(_:)), keyEquivalent: "o")
         openItem.target = self
         fileMenu.addItem(openItem)
 
         // 최근 파일
-        let recentMenuItem = NSMenuItem(title: "최근 파일 열기", action: nil, keyEquivalent: "")
-        let recentMenu = NSMenu(title: "최근 파일 열기")
+        let recentMenuItem = NSMenuItem(title: "최근 파일 열기 (Open recent files)", action: nil, keyEquivalent: "")
+        let recentMenu = NSMenu(title: "최근 파일 열기 (Open recent files)")
         recentMenuItem.submenu = recentMenu
         fileMenu.addItem(recentMenuItem)
         self.recentFilesMenu = recentMenu
@@ -210,30 +216,30 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         fileMenu.addItem(NSMenuItem.separator())
 
         // 닫기
-        let closeItem = NSMenuItem(title: "닫기", action: #selector(closeDocument(_:)), keyEquivalent: "w")
+        let closeItem = NSMenuItem(title: "닫기 (Close)", action: #selector(closeDocument(_:)), keyEquivalent: "w")
         closeItem.target = self
         fileMenu.addItem(closeItem)
 
         fileMenu.addItem(NSMenuItem.separator())
 
         // 저장
-        let saveItem = NSMenuItem(title: "저장", action: #selector(saveDocument(_:)), keyEquivalent: "s")
+        let saveItem = NSMenuItem(title: "저장 (Save)", action: #selector(saveDocument(_:)), keyEquivalent: "s")
         saveItem.target = self
         fileMenu.addItem(saveItem)
 
         // 다른 이름으로 저장
-        let saveAsItem = NSMenuItem(title: "다른 이름으로 저장...", action: #selector(saveDocumentAs(_:)), keyEquivalent: "S")
+        let saveAsItem = NSMenuItem(title: "다른 이름으로 저장 (Save As)...", action: #selector(saveDocumentAs(_:)), keyEquivalent: "S")
         saveAsItem.keyEquivalentModifierMask = [.command, .shift]
         saveAsItem.target = self
         fileMenu.addItem(saveAsItem)
 
         fileMenu.addItem(NSMenuItem.separator())
 
-        let exportHTMLItem = NSMenuItem(title: "HTML로 내보내기...", action: #selector(exportAsHTML(_:)), keyEquivalent: "")
+        let exportHTMLItem = NSMenuItem(title: "HTML로 내보내기 (Export to HTML)...", action: #selector(exportAsHTML(_:)), keyEquivalent: "")
         exportHTMLItem.target = self
         fileMenu.addItem(exportHTMLItem)
 
-        let exportPDFItem = NSMenuItem(title: "PDF로 내보내기...", action: #selector(exportAsPDF(_:)), keyEquivalent: "")
+        let exportPDFItem = NSMenuItem(title: "PDF로 내보내기 (Export to PDF)...", action: #selector(exportAsPDF(_:)), keyEquivalent: "")
         exportPDFItem.target = self
         fileMenu.addItem(exportPDFItem)
 
@@ -253,15 +259,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         editMenu.addItem(NSMenuItem.separator())
 
         // 찾기 & 바꾸기 (커스텀 찾기 패널 — Notification 기반)
-        editMenu.addItem(NSMenuItem(title: "찾기...", action: #selector(showFindPanel(_:)), keyEquivalent: "f"))
+        editMenu.addItem(NSMenuItem(title: "찾기 (Find)...", action: #selector(showFindPanel(_:)), keyEquivalent: "f"))
 
-        let replaceItem = NSMenuItem(title: "찾기 및 바꾸기...", action: #selector(showReplacePanel(_:)), keyEquivalent: "f")
+        let replaceItem = NSMenuItem(title: "찾기 및 바꾸기 (Find and Replace)...", action: #selector(showReplacePanel(_:)), keyEquivalent: "f")
         replaceItem.keyEquivalentModifierMask = [.command, .option]
         editMenu.addItem(replaceItem)
 
-        editMenu.addItem(NSMenuItem(title: "다음 찾기", action: #selector(findNext(_:)), keyEquivalent: "g"))
+        editMenu.addItem(NSMenuItem(title: "다음 찾기 (Find next)", action: #selector(findNext(_:)), keyEquivalent: "g"))
 
-        let findPrevItem = NSMenuItem(title: "이전 찾기", action: #selector(findPrevious(_:)), keyEquivalent: "G")
+        let findPrevItem = NSMenuItem(title: "이전 찾기 (Find Previous)", action: #selector(findPrevious(_:)), keyEquivalent: "G")
         findPrevItem.keyEquivalentModifierMask = [.command, .shift]
         editMenu.addItem(findPrevItem)
 
@@ -272,25 +278,25 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         let formatMenuItem = NSMenuItem()
         let formatMenu = NSMenu(title: "Format")
 
-        let boldItem = NSMenuItem(title: "볼드", action: #selector(formatBold(_:)), keyEquivalent: "b")
+        let boldItem = NSMenuItem(title: "볼드 (Bold)", action: #selector(formatBold(_:)), keyEquivalent: "b")
         boldItem.target = self
         formatMenu.addItem(boldItem)
 
-        let italicItem = NSMenuItem(title: "이탤릭", action: #selector(formatItalic(_:)), keyEquivalent: "i")
+        let italicItem = NSMenuItem(title: "이탤릭 (Italic)", action: #selector(formatItalic(_:)), keyEquivalent: "i")
         italicItem.target = self
         formatMenu.addItem(italicItem)
 
-        let linkItem = NSMenuItem(title: "링크 삽입", action: #selector(formatLink(_:)), keyEquivalent: "k")
+        let linkItem = NSMenuItem(title: "링크 삽입 (Insert link)", action: #selector(formatLink(_:)), keyEquivalent: "k")
         linkItem.target = self
         formatMenu.addItem(linkItem)
 
         formatMenu.addItem(NSMenuItem.separator())
 
-        let codeItem = NSMenuItem(title: "인라인 코드", action: #selector(formatInlineCode(_:)), keyEquivalent: "e")
+        let codeItem = NSMenuItem(title: "인라인 코드 (Inline code)", action: #selector(formatInlineCode(_:)), keyEquivalent: "e")
         codeItem.target = self
         formatMenu.addItem(codeItem)
 
-        let strikeItem = NSMenuItem(title: "취소선", action: #selector(formatStrikethrough(_:)), keyEquivalent: "d")
+        let strikeItem = NSMenuItem(title: "취소선 (Strikethrough)", action: #selector(formatStrikethrough(_:)), keyEquivalent: "d")
         strikeItem.keyEquivalentModifierMask = [.command, .shift]
         strikeItem.target = self
         formatMenu.addItem(strikeItem)
@@ -301,10 +307,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         // View 메뉴
         let viewMenuItem = NSMenuItem()
         let viewMenu = NSMenu(title: "View")
-        let toggleTabBarItem = NSMenuItem(title: "탭 바 표시/숨기기", action: #selector(toggleTabBar(_:)), keyEquivalent: "")
+        let toggleTabBarItem = NSMenuItem(title: "탭 바 표시/숨기기 (Show/Hide Tab Bar)", action: #selector(toggleTabBar(_:)), keyEquivalent: "")
         toggleTabBarItem.target = self
         viewMenu.addItem(toggleTabBarItem)
-        let toggleOutlineItem = NSMenuItem(title: "아웃라인 표시/숨기기", action: #selector(toggleOutline(_:)), keyEquivalent: "O")
+        let toggleOutlineItem = NSMenuItem(title: "아웃라인 표시/숨기기 (Show/Hide Outline)", action: #selector(toggleOutline(_:)), keyEquivalent: "O")
         toggleOutlineItem.keyEquivalentModifierMask = [.command, .shift]
         toggleOutlineItem.target = self
         viewMenu.addItem(toggleOutlineItem)
@@ -337,7 +343,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
         // Cmd+1~9: 탭 전환
         for i in 1...9 {
-            let tabItem = NSMenuItem(title: "탭 \(i)로 이동", action: #selector(selectTabByNumber(_:)), keyEquivalent: "\(i)")
+            let tabItem = NSMenuItem(title: "탭 \(i)로 이동 (Go to tab \(i))", action: #selector(selectTabByNumber(_:)), keyEquivalent: "\(i)")
             tabItem.tag = i
             tabItem.target = self
             windowMenu.addItem(tabItem)
@@ -417,7 +423,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     @objc func newWindow(_ sender: Any?) {
         DebugLogger.shared.log("Menu: New Window")
-        TabService.shared.createNewWindow()
+        TabService.shared.createNewDocument()
     }
 
     @objc func openDocument(_ sender: Any?) {
@@ -689,7 +695,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         let recentFiles = UserDefaults.standard.stringArray(forKey: recentFilesKey) ?? []
 
         if recentFiles.isEmpty {
-            let emptyItem = NSMenuItem(title: "최근 파일 없음", action: nil, keyEquivalent: "")
+            let emptyItem = NSMenuItem(title: "최근 파일 없음 (No recent files)", action: nil, keyEquivalent: "")
             emptyItem.isEnabled = false
             menu.addItem(emptyItem)
         } else {
@@ -701,7 +707,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 menu.addItem(item)
             }
             menu.addItem(NSMenuItem.separator())
-            let clearItem = NSMenuItem(title: "최근 기록 지우기", action: #selector(clearRecentFiles(_:)), keyEquivalent: "")
+            let clearItem = NSMenuItem(title: "최근 기록 지우기 (Clear recent history)", action: #selector(clearRecentFiles(_:)), keyEquivalent: "")
             clearItem.target = self
             menu.addItem(clearItem)
         }
@@ -720,9 +726,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
             let alert = NSAlert()
             alert.messageText = "파일을 찾을 수 없습니다"
-            alert.informativeText = "\"\(url.lastPathComponent)\" 파일이 이동되었거나 삭제되었습니다."
+            alert.informativeText = "\"\(url.lastPathComponent)\" 파일이 이동되었거나 삭제되었습니다. (The file has been moved or deleted)"
             alert.alertStyle = .warning
-            alert.addButton(withTitle: "확인")
+            alert.addButton(withTitle: "확인 (Check)")
             alert.runModal()
         }
     }
@@ -748,8 +754,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// Dock 아이콘 클릭 시 윈도우 재생성
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         if !flag {
-            DebugLogger.shared.log("Dock icon clicked with no visible windows - creating new window")
-            TabService.shared.createNewWindow()
+            DebugLogger.shared.log("Dock icon clicked with no visible windows - creating new document")
+            TabService.shared.createNewDocument()
         }
         return true
     }
@@ -806,12 +812,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     private func showSaveConfirmationAlert(for title: String) -> NSApplication.ModalResponse {
         let alert = NSAlert()
-        alert.messageText = "\"\(title)\"의 변경 사항을 저장하시겠습니까?"
-        alert.informativeText = "저장하지 않으면 변경 사항이 손실됩니다."
+        alert.messageText = "\"\(title)\"의 변경 사항을 저장하시겠습니까? (Do you want to save the changes?)"
+        alert.informativeText = "저장하지 않으면 변경 사항이 손실됩니다. (If you do not save, your changes will be lost.)"
         alert.alertStyle = .warning
-        alert.addButton(withTitle: "저장")
-        alert.addButton(withTitle: "저장 안 함")
-        alert.addButton(withTitle: "취소")
+        alert.addButton(withTitle: "저장 (Save)")
+        alert.addButton(withTitle: "저장 안 함 (Don't save)")
+        alert.addButton(withTitle: "취소 (Cancel)")
         return alert.runModal()
     }
 }
@@ -859,12 +865,12 @@ class DocumentManager: ObservableObject {
         guard isModified else { return true }
 
         let alert = NSAlert()
-        alert.messageText = "변경 사항을 저장하시겠습니까?"
-        alert.informativeText = "저장하지 않으면 변경 사항이 손실됩니다."
+        alert.messageText = "변경 사항을 저장하시겠습니까? (Do you want to save your changes?)"
+        alert.informativeText = "저장하지 않으면 변경 사항이 손실됩니다. (If you do not save, your changes will be lost.)"
         alert.alertStyle = .warning
-        alert.addButton(withTitle: "저장")
-        alert.addButton(withTitle: "저장 안 함")
-        alert.addButton(withTitle: "취소")
+        alert.addButton(withTitle: "저장 (Save)")
+        alert.addButton(withTitle: "저장 안 함 (Don't save)")
+        alert.addButton(withTitle: "취소 (Cancel)")
 
         let response = alert.runModal()
 
@@ -1023,11 +1029,11 @@ class DocumentManager: ObservableObject {
 
     private func showExternalChangeAlert(newContent: String) {
         let alert = NSAlert()
-        alert.messageText = "파일이 외부에서 변경되었습니다"
-        alert.informativeText = "\"\(windowTitle)\" 파일이 다른 프로그램에서 수정되었습니다. 다시 불러오시겠습니까?"
+        alert.messageText = "파일이 외부에서 변경되었습니다 (The file has been changed externally)"
+        alert.informativeText = "\"\(windowTitle)\" 파일이 다른 프로그램에서 수정되었습니다. 다시 불러오시겠습니까? (The file has been modified in another program. Would you like to reload it?)"
         alert.alertStyle = .warning
-        alert.addButton(withTitle: "다시 불러오기")
-        alert.addButton(withTitle: "무시")
+        alert.addButton(withTitle: "다시 불러오기 (Reload)")
+        alert.addButton(withTitle: "무시 (Cancel)")
 
         let response = alert.runModal()
         if response == .alertFirstButtonReturn {
@@ -1090,7 +1096,7 @@ class DocumentManager: ObservableObject {
             // 저장 후 수정일 갱신 (자체 저장을 외부 변경으로 감지하지 않도록)
             lastKnownModDate = fileModificationDate(for: url)
         } catch {
-            print("파일 저장 오류: \(error)")
+            print("파일 저장 오류: (File saving error:) \(error)")
         }
     }
 

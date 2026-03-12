@@ -12,8 +12,11 @@ class StoreManager: ObservableObject {
     @Published private(set) var products: [Product] = []
     @Published private(set) var purchaseInProgress: Bool = false
     @Published private(set) var errorMessage: String?
+    @Published private(set) var isLoadingProducts: Bool = false
 
     private var transactionListener: Task<Void, Error>?
+    private var retryTask: Task<Void, Never>?
+    private static let maxRetries = 5
 
     // App Group suite name for sharing with extensions
     static let appGroupID = "group.com.zerolive.MarkdownEditor"
@@ -22,22 +25,52 @@ class StoreManager: ObservableObject {
         transactionListener = listenForTransactions()
         Task {
             await checkEntitlements()
-            await loadProducts()
+            await loadProductsWithRetry()
         }
     }
 
     deinit {
         transactionListener?.cancel()
+        retryTask?.cancel()
     }
 
     // MARK: - Load Products
 
     func loadProducts() async {
+        isLoadingProducts = true
+        errorMessage = nil
+
         do {
-            products = try await Product.products(for: [Self.quickLookPremiumID])
+            let fetchedProducts = try await Product.products(for: [Self.quickLookPremiumID])
+            products = fetchedProducts
+            if fetchedProducts.isEmpty {
+                errorMessage = "상품을 찾을 수 없습니다. 잠시 후 다시 시도해주세요."
+                print("[StoreManager] No products found for ID: \(Self.quickLookPremiumID)")
+            } else {
+                errorMessage = nil
+                print("[StoreManager] Loaded \(fetchedProducts.count) product(s): \(fetchedProducts.map { $0.id })")
+            }
         } catch {
             errorMessage = "상품을 불러올 수 없습니다: \(error.localizedDescription)"
+            print("[StoreManager] Failed to load products: \(error)")
         }
+
+        isLoadingProducts = false
+    }
+
+    private func loadProductsWithRetry() async {
+        for attempt in 1...Self.maxRetries {
+            await loadProducts()
+
+            if !products.isEmpty { return }
+
+            let delay = min(30, attempt * 10) // 10s, 20s, 30s, 30s, 30s
+            print("[StoreManager] Retry \(attempt)/\(Self.maxRetries) in \(delay)s...")
+            try? await Task.sleep(for: .seconds(delay))
+
+            if Task.isCancelled { return }
+        }
+        print("[StoreManager] All retries exhausted")
     }
 
     // MARK: - Purchase

@@ -315,10 +315,22 @@ struct PremiumSettingsView: View {
                         }
                         .buttonStyle(.borderedProminent)
                         .disabled(storeManager.purchaseInProgress)
-                    } else {
+                    } else if storeManager.isLoadingProducts {
+                        ProgressView()
+                            .controlSize(.small)
                         Text("상품 정보를 불러오는 중...")
                             .font(.caption2)
                             .foregroundColor(.secondary)
+                    } else {
+                        Text(storeManager.errorMessage ?? "상품을 찾을 수 없습니다.")
+                            .font(.caption2)
+                            .foregroundColor(.red)
+
+                        Button("다시 시도") {
+                            Task { await storeManager.loadProducts() }
+                        }
+                        .buttonStyle(.link)
+                        .font(.caption)
                     }
 
                     Button("Restore Purchase") {
@@ -328,7 +340,7 @@ struct PremiumSettingsView: View {
                     .font(.caption)
                 }
 
-                if let error = storeManager.errorMessage {
+                if storeManager.products.first != nil, let error = storeManager.errorMessage {
                     Text(error)
                         .font(.caption)
                         .foregroundColor(.red)

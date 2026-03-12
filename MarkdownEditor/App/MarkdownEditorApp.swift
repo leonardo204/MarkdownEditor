@@ -182,21 +182,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         let fileMenuItem = NSMenuItem()
         let fileMenu = NSMenu(title: "File")
 
-        // 새 탭 (Cmd+T)
+        // 새 윈도우 (Cmd+N) — macOS 표준
+        let newWindowItem = NSMenuItem(title: "새 윈도우", action: #selector(newWindow(_:)), keyEquivalent: "n")
+        newWindowItem.target = self
+        fileMenu.addItem(newWindowItem)
+
+        // 새 탭 (Cmd+T) — macOS 표준
         let newTabItem = NSMenuItem(title: "새 탭", action: #selector(newDocument(_:)), keyEquivalent: "t")
         newTabItem.target = self
         fileMenu.addItem(newTabItem)
-
-        // 새 문서 (Cmd+N)
-        let newDocItem = NSMenuItem(title: "새 문서", action: #selector(newDocument(_:)), keyEquivalent: "n")
-        newDocItem.target = self
-        fileMenu.addItem(newDocItem)
-
-        // 새 윈도우
-        let newWindowItem = NSMenuItem(title: "새 윈도우", action: #selector(newWindow(_:)), keyEquivalent: "N")
-        newWindowItem.keyEquivalentModifierMask = [.command, .shift]
-        newWindowItem.target = self
-        fileMenu.addItem(newWindowItem)
 
         fileMenu.addItem(NSMenuItem.separator())
 
@@ -423,7 +417,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     @objc func newWindow(_ sender: Any?) {
         DebugLogger.shared.log("Menu: New Window")
-        TabService.shared.createNewDocument()
+        TabService.shared.createNewWindow()
     }
 
     @objc func openDocument(_ sender: Any?) {
@@ -754,8 +748,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// Dock 아이콘 클릭 시 윈도우 재생성
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         if !flag {
-            DebugLogger.shared.log("Dock icon clicked with no visible windows - creating new document")
-            TabService.shared.createNewDocument()
+            DebugLogger.shared.log("Dock icon clicked with no visible windows - creating new window")
+            TabService.shared.createNewWindow()
         }
         return true
     }

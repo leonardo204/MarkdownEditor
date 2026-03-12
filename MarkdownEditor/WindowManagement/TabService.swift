@@ -26,7 +26,7 @@ final class TabService {
         return managedWindows.count
     }
 
-    // MARK: - 새 문서 생성
+    // MARK: - 새 문서 생성 (탭으로 추가됨 — tabbingMode = .preferred)
     @discardableResult
     func createNewDocument() -> DocumentWindowController {
         let dm = DocumentManager()
@@ -40,6 +40,37 @@ final class TabService {
         controller.window?.makeKeyAndOrderFront(nil)
 
         DebugLogger.shared.log("TabService: Created new document '\(dm.windowTitle)', total: \(managedWindows.count)")
+
+        return controller
+    }
+
+    // MARK: - 새 독립 윈도우 생성 (탭 병합 방지)
+    @discardableResult
+    func createNewWindow() -> DocumentWindowController {
+        let dm = DocumentManager()
+        dm.windowTitle = generateNextUntitledTitle()
+
+        let controller = DocumentWindowController(documentManager: dm)
+
+        // 탭 자동 병합 방지
+        controller.window?.tabbingMode = .disallowed
+
+        addManagedWindow(controller)
+
+        controller.showWindow(nil)
+        controller.window?.makeKeyAndOrderFront(nil)
+
+        // 독립 윈도우로 표시된 후 다시 preferred로 전환 (이후 탭 추가 허용)
+        DispatchQueue.main.async {
+            guard let window = controller.window else { return }
+            window.tabbingMode = .preferred
+            // 탭 바 표시
+            if let tabGroup = window.tabGroup, !tabGroup.isTabBarVisible {
+                window.toggleTabBar(nil)
+            }
+        }
+
+        DebugLogger.shared.log("TabService: Created new window '\(dm.windowTitle)', total: \(managedWindows.count)")
 
         return controller
     }

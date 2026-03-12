@@ -13,6 +13,10 @@ import MarkdownCore
 class PreviewViewController: NSViewController, QLPreviewingController {
 
     private var webView: WKWebView!
+    private static let appGroupID = "group.com.zerolive.MarkdownEditor"
+    private static let sizeWidthKey = "quickLookWidth"
+    private static let sizeHeightKey = "quickLookHeight"
+    private static let defaultSize = NSSize(width: 800, height: 600)
 
     override var nibName: NSNib.Name? {
         return NSNib.Name("PreviewViewController")
@@ -25,12 +29,41 @@ class PreviewViewController: NSViewController, QLPreviewingController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
+        // 저장된 사이즈 복원 또는 기본값 사용
+        let savedSize = Self.loadSavedSize()
+        preferredContentSize = savedSize
+
         let config = WKWebViewConfiguration()
         config.preferences.setValue(true, forKey: "allowFileAccessFromFileURLs")
 
         webView = WKWebView(frame: view.bounds, configuration: config)
         webView.autoresizingMask = [.width, .height]
         view.addSubview(webView)
+    }
+
+    override func viewWillDisappear() {
+        super.viewWillDisappear()
+        // 현재 뷰 사이즈 저장
+        let size = view.frame.size
+        if size.width > 100 && size.height > 100 {
+            Self.saveSize(size)
+        }
+    }
+
+    private static func loadSavedSize() -> NSSize {
+        guard let defaults = UserDefaults(suiteName: appGroupID) else { return defaultSize }
+        let w = defaults.double(forKey: sizeWidthKey)
+        let h = defaults.double(forKey: sizeHeightKey)
+        if w > 100 && h > 100 {
+            return NSSize(width: w, height: h)
+        }
+        return defaultSize
+    }
+
+    private static func saveSize(_ size: NSSize) {
+        guard let defaults = UserDefaults(suiteName: appGroupID) else { return }
+        defaults.set(size.width, forKey: sizeWidthKey)
+        defaults.set(size.height, forKey: sizeHeightKey)
     }
 
     func preparePreviewOfFile(at url: URL) async throws {

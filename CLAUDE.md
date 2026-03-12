@@ -1,23 +1,34 @@
-# CLAUDE.md - MarkdownEditor
+# Claude Code 개발 가이드
 
-## 프로젝트 개요
+> 공통 규칙(Agent Delegation, 커밋 정책, Context DB 등)은 글로벌 설정(`~/.claude/CLAUDE.md`)을 따릅니다.
+> 글로벌 미설치 시: `curl -fsSL https://raw.githubusercontent.com/leonardo204/dotclaude/main/install.sh | bash`
 
-macOS용 마크다운 에디터 앱 (AppKit 생명주기 + SwiftUI 뷰)
-- 현재 버전: v1.4.0, Build 18
-- 파서: apple/swift-markdown (SPM) AST 기반
-- 아키텍처: 순수 AppKit 생명주기 + SwiftUI 뷰, TabService 싱글톤, 네이티브 윈도우 탭
+---
 
-## 빌드 및 실행
+## Slim 정책
 
-```bash
-# Xcode에서 열기
-open MarkdownEditor.xcodeproj
+이 파일은 **100줄 이하**를 유지한다. 새 지침 추가 시:
+1. 매 턴 참조 필요 → 이 파일에 1줄 추가
+2. 상세/예시/테이블 → docs/claude/*.md에 작성 후 여기서 참조
+3. ref-docs 헤더: `# 제목 — 한 줄 설명` (모델이 첫 줄만 보고 필요 여부 판단)
 
-# 빌드 (CLI)
-xcodebuild -project MarkdownEditor.xcodeproj -scheme MarkdownEditor -configuration Release build
-```
+---
 
-## 주요 기능
+## PROJECT
+
+### 개요
+
+**MarkdownEditor** — macOS용 마크다운 에디터 앱 (AppKit 생명주기 + SwiftUI 뷰)
+
+| 항목 | 값 |
+|------|-----|
+| 기술 스택 | macOS, AppKit + SwiftUI, swift-markdown (SPM), StoreKit 2 |
+| 빌드 방법 | `xcodebuild -project MarkdownEditor.xcodeproj -scheme MarkdownEditor -configuration Release build` |
+| 현재 버전 | v1.4.0, Build 18 |
+| 아키텍처 | 순수 AppKit 생명주기 + SwiftUI 뷰, TabService 싱글톤, 네이티브 윈도우 탭 |
+| 상태 | App Store 출시 |
+
+### 주요 기능
 
 - swift-markdown 기반 마크다운 렌더링 (AST → HTML)
 - 찾기/바꾸기, 아웃라인 사이드바, 포커스/타자기 모드
@@ -27,11 +38,17 @@ xcodebuild -project MarkdownEditor.xcodeproj -scheme MarkdownEditor -configurati
 - Quick Look Extension (Premium): Finder에서 마크다운 풀 미리보기
 - StoreKit 2 인앱 구입 (비소모품)
 
-## 문서
+### 상세 문서
 
-| 문서 | 설명 |
-|------|------|
-| [docs/architecture.md](docs/architecture.md) | 프로젝트 구조, 핵심 아키텍처, 스크롤 동기화 메커니즘 |
-| [docs/appstore-checklist.md](docs/appstore-checklist.md) | 앱스토어 제출 체크리스트, Validation 오류 해결, 유용한 명령어 |
-| [docs/changelog.md](docs/changelog.md) | 버전별 변경 이력 |
-| [docs/quicklook-iap-review.md](docs/quicklook-iap-review.md) | Quick Look + IAP 기능 검토 |
+- [아키텍처](docs/architecture.md) — 프로젝트 구조, 핵심 아키텍처, 스크롤 동기화
+- [앱스토어 체크리스트](docs/appstore-checklist.md) — 제출 체크리스트, Validation 오류 해결
+- [변경 이력](docs/changelog.md) — 버전별 변경 이력
+- [Quick Look + IAP 검토](docs/quicklook-iap-review.md) — Quick Look + IAP 기능 검토
+- [Context DB](docs/claude/context-db.md) — SQLite 기반 세션/태스크/결정 저장소
+- [Context Monitor](docs/claude/context-monitor.md) — HUD + compaction 감지/복구
+- [컨벤션](docs/claude/conventions.md) — 커밋, 주석, 로깅 규칙
+- [셋업](docs/claude/setup.md) — 새 환경 초기 설정
+
+---
+
+*최종 업데이트: 2026-03-12*

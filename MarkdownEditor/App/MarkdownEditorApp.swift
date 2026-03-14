@@ -295,6 +295,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         strikeItem.target = self
         formatMenu.addItem(strikeItem)
 
+        formatMenu.addItem(NSMenuItem.separator())
+
+        let insertImageItem = NSMenuItem(title: "이미지 삽입...", action: #selector(insertImageFromFile(_:)), keyEquivalent: "o")
+        insertImageItem.keyEquivalentModifierMask = [.control]
+        insertImageItem.target = self
+        formatMenu.addItem(insertImageItem)
+
         formatMenuItem.submenu = formatMenu
         mainMenu.addItem(formatMenuItem)
 
@@ -381,11 +388,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     @objc func toggleOutline(_ sender: Any?) {
-        NotificationCenter.default.post(name: NSNotification.Name("ToggleOutline"), object: nil)
+        NotificationCenter.default.post(name: NSNotification.Name("ToggleOutline"), object: NSApp.keyWindow)
     }
 
     @objc func toggleTypewriterMode(_ sender: Any?) {
-        NotificationCenter.default.post(name: NSNotification.Name("ToggleTypewriterMode"), object: nil)
+        NotificationCenter.default.post(name: NSNotification.Name("ToggleTypewriterMode"), object: NSApp.keyWindow)
     }
 
     @objc func selectTabByNumber(_ sender: NSMenuItem) {
@@ -582,19 +589,19 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     // MARK: - 찾기/바꾸기 액션 (커스텀 패널)
 
     @objc func showFindPanel(_ sender: Any?) {
-        NotificationCenter.default.post(name: NSNotification.Name("ShowFindPanel"), object: nil)
+        NotificationCenter.default.post(name: NSNotification.Name("ShowFindPanel"), object: NSApp.keyWindow)
     }
 
     @objc func showReplacePanel(_ sender: Any?) {
-        NotificationCenter.default.post(name: NSNotification.Name("ShowReplacePanel"), object: nil)
+        NotificationCenter.default.post(name: NSNotification.Name("ShowReplacePanel"), object: NSApp.keyWindow)
     }
 
     @objc func findNext(_ sender: Any?) {
-        NotificationCenter.default.post(name: NSNotification.Name("FindNext"), object: nil)
+        NotificationCenter.default.post(name: NSNotification.Name("FindNext"), object: NSApp.keyWindow)
     }
 
     @objc func findPrevious(_ sender: Any?) {
-        NotificationCenter.default.post(name: NSNotification.Name("FindPrevious"), object: nil)
+        NotificationCenter.default.post(name: NSNotification.Name("FindPrevious"), object: NSApp.keyWindow)
     }
 
     // MARK: - 서식 단축키 액션
@@ -661,6 +668,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     @objc func formatStrikethrough(_ sender: Any?) {
         wrapSelectionWith(prefix: "~~", suffix: "~~")
+    }
+
+    @objc func insertImageFromFile(_ sender: Any?) {
+        NotificationCenter.default.post(name: NSNotification.Name("InsertImageFromFile"), object: NSApp.keyWindow)
     }
 
     // MARK: - 최근 파일 관리

@@ -111,6 +111,23 @@ struct PreviewSettingsView: View {
     @AppStorage("previewTheme") private var previewTheme: String = "dark"
     @AppStorage("previewMode") private var previewMode: String = "preview"
     @AppStorage("autoReloadPreview") private var autoReloadPreview: Bool = true
+    @AppStorage("imageRenderMode") private var imageRenderMode: String = "optimized"
+    @AppStorage("imageMaxWidth") private var imageMaxWidth: Double = 680
+
+    // 프리뷰 패널 최대 폭 (메인 윈도우 폭의 약 절반 - 패딩)
+    private var maxSliderWidth: Double {
+        let docWindow = NSApp.windows.first(where: { window in
+            window.isVisible &&
+            !window.isSheet &&
+            !(window is NSPanel) &&
+            window != window.attachedSheet &&
+            window.frame.width > 400
+        })
+        if let window = docWindow {
+            return max(200, Double(window.frame.width / 2 - 60))
+        }
+        return 680
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -146,9 +163,39 @@ struct PreviewSettingsView: View {
                     .labelsHidden()
                 Spacer()
             }
+
+            // 이미지 크기
+            HStack {
+                Text("Image Size")
+                    .frame(width: 100, alignment: .leading)
+                Picker("", selection: $imageRenderMode) {
+                    Text("Optimized").tag("optimized")
+                    Text("Original").tag("original")
+                }
+                .labelsHidden()
+                .frame(width: 120)
+            }
+
+            // 이미지 최대 너비 (Optimized 모드일 때)
+            if imageRenderMode == "optimized" {
+                HStack {
+                    Text("Max Width")
+                        .frame(width: 100, alignment: .leading)
+                    Slider(value: $imageMaxWidth, in: 200...maxSliderWidth)
+                        .frame(width: 140)
+                    Text("\(Int(imageMaxWidth)) px")
+                        .foregroundColor(.secondary)
+                        .frame(width: 55, alignment: .trailing)
+                }
+            }
         }
         .padding(20)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .onAppear {
+            if imageMaxWidth > maxSliderWidth {
+                imageMaxWidth = maxSliderWidth
+            }
+        }
     }
 }
 
@@ -457,7 +504,8 @@ struct KeyboardShortcutsView: View {
                         ShortcutItem(keys: "⌘ B", description: "Bold"),
                         ShortcutItem(keys: "⌘ I", description: "Italic"),
                         ShortcutItem(keys: "⌘ U", description: "Underline"),
-                        ShortcutItem(keys: "⌘ K", description: "Insert Link")
+                        ShortcutItem(keys: "⌘ K", description: "Insert Link"),
+                        ShortcutItem(keys: "⌃ O", description: "Insert Image from File")
                     ])
 
                     // 보기 관련

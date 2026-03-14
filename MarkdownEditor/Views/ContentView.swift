@@ -165,6 +165,8 @@ struct EditorPreviewSplitView: View {
     var onSelectHeading: ((Int, Int) -> Void)?
     var focusMode: Bool = false
     var typewriterMode: Bool = false
+    var onInsertImageFromFile: (() -> Void)?
+    var onImageFilesDrop: (([URL]) -> Void)?
 
     var body: some View {
         HStack(spacing: 0) {
@@ -197,10 +199,10 @@ struct EditorPreviewSplitView: View {
             Divider()
 
             // 툴바
-            ToolbarView { action in
+            ToolbarView(onAction: { action in
                 actionHandler.applyFormatting(action)
                 onContentChange(documentManager.content)
-            }
+            }, onInsertImageFromFile: onInsertImageFromFile)
             .fixedSize(horizontal: false, vertical: true)
 
             Divider()
@@ -213,6 +215,7 @@ struct EditorPreviewSplitView: View {
                 showLineNumbers: appState.showLineNumbers,
                 onFileDrop: onFileDrop,
                 onImageDrop: onImageDrop,
+                onImageFilesDrop: onImageFilesDrop,
                 actionHandler: actionHandler,
                 onContentChange: onContentChange,
                 scrollSyncManager: scrollSyncManager,

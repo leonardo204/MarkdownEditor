@@ -1,6 +1,109 @@
 import SwiftUI
 import WebKit
 
+enum MarkdownImageHelper {
+    static func encodeImagePath(_ path: String) -> String {
+        var allowed = CharacterSet.urlPathAllowed
+        allowed.remove(charactersIn: "()")
+        return path.addingPercentEncoding(withAllowedCharacters: allowed) ?? path
+    }
+
+    // HTML 내 로컬 이미지 src를 base64 data URI로 변환
+    static func embedLocalImages(in html: String, documentURL: URL) -> String {
+        let docDir = documentURL.deletingLastPathComponent()
+        let pattern = #"<img\s+([^>]*?)src="([^"]+)"([^>]*?)>"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else { return html }
+
+        let nsHTML = html as NSString
+        let matches = regex.matches(in: html, options: [], range: NSRange(location: 0, length: nsHTML.length))
+        guard !matches.isEmpty else { return html }
+
+        // 원본에서 조각별로 조립 (인덱스 어긋남 방지)
+        var result = ""
+        var lastEnd = 0
+
+        for match in matches {
+            let fullRange = match.range(at: 0)
+            let src = nsHTML.substring(with: match.range(at: 2))
+
+            // 변환 불필요한 src는 원본 유지
+            guard !src.hasPrefix("data:"), !src.hasPrefix("http://"), !src.hasPrefix("https://") else {
+                result += nsHTML.substring(with: NSRange(location: lastEnd, length: fullRange.location + fullRange.length - lastEnd))
+                lastEnd = fullRange.location + fullRange.length
+                continue
+            }
+
+            // 이미지 파일 URL 결정
+            let imageURL: URL
+            if src.hasPrefix("file://") {
+                guard let url = URL(string: src) else {
+                    result += nsHTML.substring(with: NSRange(location: lastEnd, length: fullRange.location + fullRange.length - lastEnd))
+                    lastEnd = fullRange.location + fullRange.length
+                    continue
+                }
+                imageURL = url
+            } else {
+                let decoded = src.removingPercentEncoding ?? src
+                imageURL = docDir.appendingPathComponent(decoded)
+            }
+
+            // 파일 읽기
+            guard FileManager.default.fileExists(atPath: imageURL.path),
+                  let data = try? Data(contentsOf: imageURL) else {
+                result += nsHTML.substring(with: NSRange(location: lastEnd, length: fullRange.location + fullRange.length - lastEnd))
+                lastEnd = fullRange.location + fullRange.length
+                continue
+            }
+
+            let ext = imageURL.pathExtension.lowercased()
+            let mime: String
+            switch ext {
+            case "png": mime = "image/png"
+            case "jpg", "jpeg": mime = "image/jpeg"
+            case "gif": mime = "image/gif"
+            case "svg": mime = "image/svg+xml"
+            case "webp": mime = "image/webp"
+            case "bmp": mime = "image/bmp"
+            case "tiff", "tif": mime = "image/tiff"
+            default: mime = "image/png"
+            }
+
+            let base64 = data.base64EncodedString()
+            let dataURI = "data:\(mime);base64,\(base64)"
+
+            // match 앞의 원본 텍스트 + 치환된 img 태그
+            result += nsHTML.substring(with: NSRange(location: lastEnd, length: fullRange.location - lastEnd))
+            let beforeSrc = nsHTML.substring(with: match.range(at: 1))
+            let afterSrc = nsHTML.substring(with: match.range(at: 3))
+            result += "<img \(beforeSrc)src=\"\(dataURI)\"\(afterSrc)>"
+            lastEnd = fullRange.location + fullRange.length
+        }
+
+        // 마지막 match 이후 나머지
+        if lastEnd < nsHTML.length {
+            result += nsHTML.substring(from: lastEnd)
+        }
+
+        return result
+    }
+
+    static func markdownImageSnippet(imageURL: URL, docDir: URL) -> String {
+        let fileName = imageURL.deletingPathExtension().lastPathComponent
+        let imagePath = imageURL.path
+        let docPath = docDir.path
+        if imagePath.hasPrefix(docPath + "/") {
+            // 문서 디렉토리 내부 → 상대경로
+            let relativePath = String(imagePath.dropFirst(docPath.count + 1))
+            let encodedPath = encodeImagePath(relativePath)
+            return "![\(fileName)](\(encodedPath))"
+        } else {
+            // 문서 디렉토리 외부 → file:// 절대 URL
+            let fileURLString = imageURL.absoluteString
+            return "![\(fileName)](\(fileURLString))"
+        }
+    }
+}
+
 // MARK: - 문서 콘텐츠 뷰
 // NSHostingView에서 호스팅되는 SwiftUI 루트 뷰
 // DocumentManager를 외부(DocumentWindowController)에서 주입받음
@@ -75,7 +178,9 @@ struct DocumentContentView: View {
                 DebugLogger.shared.log("[Outline] after scroll, currentLine:\(currentLine)")
             },
             focusMode: focusMode,
-            typewriterMode: typewriterMode
+            typewriterMode: typewriterMode,
+            onInsertImageFromFile: handleInsertImageFromFile,
+            onImageFilesDrop: handleImageFilesDrop
         )
         .frame(minWidth: 800, minHeight: 600)
         .onAppear {
@@ -88,42 +193,69 @@ struct DocumentContentView: View {
                 updatePreview()
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ToggleOutline"))) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ToggleOutline"))) { n in
+            guard isMyWindow(n) else { return }
             showOutline.toggle()
         }
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ToggleFocusMode"))) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ToggleFocusMode"))) { n in
+            guard isMyWindow(n) else { return }
             focusMode.toggle()
         }
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ToggleTypewriterMode"))) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ToggleTypewriterMode"))) { n in
+            guard isMyWindow(n) else { return }
             typewriterMode.toggle()
         }
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowFindPanel"))) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowFindPanel"))) { n in
+            guard isMyWindow(n) else { return }
             withAnimation(.easeInOut(duration: 0.15)) {
                 findReplaceManager.show(withReplace: false)
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowReplacePanel"))) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowReplacePanel"))) { n in
+            guard isMyWindow(n) else { return }
             withAnimation(.easeInOut(duration: 0.15)) {
                 findReplaceManager.show(withReplace: true)
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("FindNext"))) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("FindNext"))) { n in
+            guard isMyWindow(n) else { return }
             findReplaceManager.findNext()
         }
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("FindPrevious"))) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("FindPrevious"))) { n in
+            guard isMyWindow(n) else { return }
             findReplaceManager.findPrevious()
         }
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("CloseFindPanel"))) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("CloseFindPanel"))) { n in
+            guard isMyWindow(n) else { return }
             withAnimation(.easeInOut(duration: 0.15)) {
                 findReplaceManager.close()
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("InsertImageFromFile"))) { n in
+            guard isMyWindow(n) else { return }
+            handleInsertImageFromFile()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("RequestSaveBeforeImage"))) { notification in
+            handleSaveBeforeImageDrop(notification: notification)
+        }
+    }
+
+    // MARK: - 윈도우 스코핑
+    private func isMyWindow(_ notification: NotificationCenter.Publisher.Output) -> Bool {
+        guard let senderWindow = notification.object as? NSWindow else { return true }
+        guard let myWindow = actionHandler.textView?.window else { return false }
+        return senderWindow === myWindow
     }
 
     // MARK: - 프리뷰 업데이트
 
     private func updatePreview() {
-        htmlContent = markdownProcessor.convertToHTML(documentManager.content)
+        var html = markdownProcessor.convertToHTML(documentManager.content)
+        // 로컬 이미지를 base64 data URI로 인라인 (WKWebView 샌드박스 대응)
+        if let docURL = documentManager.currentFileURL {
+            html = MarkdownImageHelper.embedLocalImages(in: html, documentURL: docURL)
+        }
+        htmlContent = html
     }
 
     // MARK: - 커서 이동 (스크롤 없이)
@@ -223,37 +355,182 @@ struct DocumentContentView: View {
         }
     }
 
+    // MARK: - 파일에서 이미지 삽입 (NSOpenPanel)
+
+    private func handleInsertImageFromFile() {
+        if documentManager.currentFileURL == nil {
+            let alert = NSAlert()
+            alert.messageText = "문서를 먼저 저장해주세요"
+            alert.informativeText = "이미지를 삽입하려면 문서를 먼저 저장해야 합니다.\n확인을 누르면 저장 화면이 열립니다."
+            alert.addButton(withTitle: "확인")
+            alert.addButton(withTitle: "취소")
+            guard alert.runModal() == .alertFirstButtonReturn else { return }
+            documentManager.saveDocumentAs()
+            guard documentManager.currentFileURL != nil else { return }
+        }
+
+        let openPanel = NSOpenPanel()
+        openPanel.allowsMultipleSelection = true
+        openPanel.canChooseDirectories = false
+        openPanel.allowedContentTypes = [.png, .jpeg, .gif, .svg, .webP, .tiff, .bmp]
+        openPanel.message = "삽입할 이미지를 선택하세요"
+
+        // 문서 디렉토리를 기본 위치로
+        if let docURL = documentManager.currentFileURL {
+            openPanel.directoryURL = docURL.deletingLastPathComponent()
+        }
+
+        guard openPanel.runModal() == .OK, !openPanel.urls.isEmpty else { return }
+
+        guard let textView = actionHandler.textView else { return }
+
+        guard let docURL = documentManager.currentFileURL else { return }
+        let docDir = docURL.deletingLastPathComponent()
+        let markdownSnippets = openPanel.urls.map { MarkdownImageHelper.markdownImageSnippet(imageURL: $0, docDir: docDir) }
+
+        let insertion = markdownSnippets.joined(separator: "\n") + "\n"
+        let selectedRange = textView.selectedRange()
+
+        if textView.shouldChangeText(in: selectedRange, replacementString: insertion) {
+            textView.textStorage?.replaceCharacters(in: selectedRange, with: insertion)
+            textView.didChangeText()
+            let newPosition = selectedRange.location + (insertion as NSString).length
+            textView.setSelectedRange(NSRange(location: newPosition, length: 0))
+        }
+
+        // 콘텐츠 변경 반영
+        documentManager.updateContent(textView.string)
+        previewDebouncer.debounce {
+            updatePreview()
+        }
+    }
+
+    // MARK: - 이미 존재하는 이미지 파일 드롭 처리 (저장 불필요)
+    private func handleImageFilesDrop(_ imageURLs: [URL]) {
+        if documentManager.currentFileURL == nil {
+            // Untitled 문서면 notification으로 저장 유도
+            NotificationCenter.default.post(
+                name: NSNotification.Name("RequestSaveBeforeImage"),
+                object: nil,
+                userInfo: [
+                    "textView": actionHandler.textView as Any,
+                    "imageURLs": imageURLs
+                ]
+            )
+            return
+        }
+
+        guard let textView = actionHandler.textView,
+              let docURL = documentManager.currentFileURL else { return }
+
+        let docDir = docURL.deletingLastPathComponent()
+        let markdownSnippets = imageURLs.map { MarkdownImageHelper.markdownImageSnippet(imageURL: $0, docDir: docDir) }
+
+        let insertion = markdownSnippets.joined(separator: "\n") + "\n"
+        let selectedRange = textView.selectedRange()
+
+        if textView.shouldChangeText(in: selectedRange, replacementString: insertion) {
+            textView.textStorage?.replaceCharacters(in: selectedRange, with: insertion)
+            textView.didChangeText()
+            let newPosition = selectedRange.location + (insertion as NSString).length
+            textView.setSelectedRange(NSRange(location: newPosition, length: 0))
+        }
+
+        documentManager.updateContent(textView.string)
+        previewDebouncer.debounce { updatePreview() }
+    }
+
+    // MARK: - 미저장 문서 이미지 드롭 시 저장 유도
+    private func handleSaveBeforeImageDrop(notification: NotificationCenter.Publisher.Output) {
+        guard let userInfo = notification.userInfo,
+              let sourceTextView = userInfo["textView"] as? NSTextView,
+              sourceTextView === actionHandler.textView else { return }
+
+        guard let imageURLs = userInfo["imageURLs"] as? [URL] else { return }
+
+        let alert = NSAlert()
+        alert.messageText = "문서를 먼저 저장해주세요"
+        alert.informativeText = "이미지를 삽입하려면 문서를 먼저 저장해야 합니다.\n확인을 누르면 저장 화면이 열립니다."
+        alert.addButton(withTitle: "확인")
+        alert.addButton(withTitle: "취소")
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        documentManager.saveDocumentAs()
+        guard let docURL = documentManager.currentFileURL,
+              let textView = actionHandler.textView else { return }
+
+        let docDir = docURL.deletingLastPathComponent()
+        let markdownSnippets = imageURLs.map { MarkdownImageHelper.markdownImageSnippet(imageURL: $0, docDir: docDir) }
+
+        let insertion = markdownSnippets.joined(separator: "\n") + "\n"
+        let selectedRange = textView.selectedRange()
+        if textView.shouldChangeText(in: selectedRange, replacementString: insertion) {
+            textView.textStorage?.replaceCharacters(in: selectedRange, with: insertion)
+            textView.didChangeText()
+            let newPosition = selectedRange.location + (insertion as NSString).length
+            textView.setSelectedRange(NSRange(location: newPosition, length: 0))
+        }
+        documentManager.updateContent(textView.string)
+        previewDebouncer.debounce { updatePreview() }
+    }
+
     // MARK: - 이미지 드롭 처리
 
     private func handleImageDrop(image: NSImage, suggestedName: String) -> String? {
-        guard let fileURL = documentManager.currentFileURL else {
-            // Untitled 문서면 먼저 저장 요청
+        if documentManager.currentFileURL == nil {
             let alert = NSAlert()
             alert.messageText = "문서를 먼저 저장해주세요"
-            alert.informativeText = "이미지를 삽입하려면 문서를 먼저 저장해야 합니다."
-            alert.runModal()
-            return nil
+            alert.informativeText = "이미지를 삽입하려면 문서를 먼저 저장해야 합니다.\n확인을 누르면 저장 화면이 열립니다."
+            alert.addButton(withTitle: "확인")
+            alert.addButton(withTitle: "취소")
+            guard alert.runModal() == .alertFirstButtonReturn else { return nil }
+            documentManager.saveDocumentAs()
+            guard documentManager.currentFileURL != nil else { return nil }
         }
 
-        // 이미지 저장 디렉토리
-        let imageDir = fileURL.deletingLastPathComponent().appendingPathComponent("images")
-        try? FileManager.default.createDirectory(at: imageDir, withIntermediateDirectories: true)
-
-        // 이미지를 PNG로 저장
-        let imageURL = imageDir.appendingPathComponent(suggestedName)
-
+        // PNG 데이터 생성
         guard let tiffData = image.tiffRepresentation,
               let bitmapRep = NSBitmapImageRep(data: tiffData),
               let pngData = bitmapRep.representation(using: .png, properties: [:]) else {
+            DebugLogger.shared.log("[ImageDrop] Image data conversion failed")
+            return nil
+        }
+
+        // NSSavePanel로 사용자에게 저장 위치 선택 (Sandbox 권한 자동 획득)
+        let savePanel = NSSavePanel()
+        savePanel.nameFieldStringValue = suggestedName
+        savePanel.allowedContentTypes = [.png]
+        savePanel.canCreateDirectories = true
+
+        // 문서 디렉토리의 images/ 폴더를 기본 위치로 제안
+        if let docURL = documentManager.currentFileURL {
+            let imageDir = docURL.deletingLastPathComponent().appendingPathComponent("images")
+            savePanel.directoryURL = imageDir
+        }
+
+        guard savePanel.runModal() == .OK, let savedURL = savePanel.url else {
             return nil
         }
 
         do {
-            try pngData.write(to: imageURL)
-            DebugLogger.shared.log("Saved image: \(imageURL.lastPathComponent)")
-            return "images/\(suggestedName)"
+            try pngData.write(to: savedURL)
+            DebugLogger.shared.log("[ImageDrop] Saved image: \(savedURL.path)")
+
+            // 문서 기준 상대 경로 계산
+            if let docURL = documentManager.currentFileURL {
+                let docDir = docURL.deletingLastPathComponent()
+                let imagePath = savedURL.path
+                let docPath = docDir.path
+
+                if imagePath.hasPrefix(docPath + "/") {
+                    let relativePath = String(imagePath.dropFirst(docPath.count + 1))
+                    return relativePath
+                }
+            }
+
+            // 상대 경로 계산 실패 시 절대 경로
+            return savedURL.path
         } catch {
-            DebugLogger.shared.log("Image save failed: \(error)")
+            DebugLogger.shared.log("[ImageDrop] Image save failed: \(error)")
             return nil
         }
     }

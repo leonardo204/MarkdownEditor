@@ -88,6 +88,7 @@ struct SimpleEditorView: View {
     var showLineNumbers: Bool = true
     var onFileDrop: (([URL]) -> Void)?
     var onImageDrop: ((NSImage, String) -> String?)?
+    var onImageFilesDrop: (([URL]) -> Void)?
     var actionHandler: EditorActionHandler?
     var onContentChange: ((String) -> Void)?
     var scrollSyncManager: ScrollSyncManager?
@@ -116,6 +117,8 @@ struct SimpleEditorView: View {
                 fontSize: fontSize,
                 lineCount: $lineCount,
                 onFileDrop: onFileDrop,
+                onImageDrop: onImageDrop,
+                onImageFilesDrop: onImageFilesDrop,
                 actionHandler: actionHandler,
                 onContentChange: onContentChange,
                 scrollSyncManager: scrollSyncManager,
@@ -143,6 +146,8 @@ struct MarkdownNSTextView: NSViewRepresentable {
     var fontSize: CGFloat
     @Binding var lineCount: Int
     var onFileDrop: (([URL]) -> Void)?
+    var onImageDrop: ((NSImage, String) -> String?)?
+    var onImageFilesDrop: (([URL]) -> Void)?
     var actionHandler: EditorActionHandler?
     var onContentChange: ((String) -> Void)?
     var scrollSyncManager: ScrollSyncManager?
@@ -172,6 +177,8 @@ struct MarkdownNSTextView: NSViewRepresentable {
         textView.isAutomaticTextReplacementEnabled = false
         textView.isAutomaticSpellingCorrectionEnabled = false
         textView.onFileDrop = onFileDrop
+        textView.onImageDrop = onImageDrop
+        textView.onImageFilesDrop = onImageFilesDrop
         textView.focusModeEnabled = focusMode
         textView.typewriterModeEnabled = typewriterMode
 
@@ -238,8 +245,10 @@ struct MarkdownNSTextView: NSViewRepresentable {
         applyTheme(to: textView)
         scrollView.backgroundColor = theme.backgroundColor
 
-        // 파일 드롭 핸들러 업데이트
+        // 드롭/이미지 핸들러 업데이트
         textView.onFileDrop = onFileDrop
+        textView.onImageDrop = onImageDrop
+        textView.onImageFilesDrop = onImageFilesDrop
         textView.focusModeEnabled = focusMode
         textView.typewriterModeEnabled = typewriterMode
 
@@ -371,7 +380,8 @@ struct MarkdownNSTextView: NSViewRepresentable {
 // MARK: - 에디터 텍스트 뷰 (드래그 앤 드롭 지원)
 class EditorTextView: NSTextView {
     var onFileDrop: (([URL]) -> Void)?
-    var onImageDrop: ((NSImage, String) -> String?)?  // image, suggested name -> saved relative path
+    var onImageDrop: ((NSImage, String) -> String?)?  // clipboard image, suggested name -> saved relative path
+    var onImageFilesDrop: (([URL]) -> Void)?  // existing image files drop (no save needed)
     var focusModeEnabled: Bool = false {
         didSet {
             if focusModeEnabled {
@@ -440,6 +450,18 @@ class EditorTextView: NSTextView {
         scrollView.contentView.setBoundsOrigin(NSPoint(x: 0, y: clampedY))
     }
 
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        // Cmd+V: 이미지 붙여넣기 우선 처리
+        if event.modifierFlags.contains(.command) && event.charactersIgnoringModifiers == "v" {
+            let pasteboard = NSPasteboard.general
+            if pasteboard.canReadObject(forClasses: [NSImage.self], options: nil) {
+                paste(nil)
+                return true
+            }
+        }
+        return super.performKeyEquivalent(with: event)
+    }
+
     override func keyDown(with event: NSEvent) {
         // Escape: 찾기 패널 닫기
         if event.keyCode == 53 {
@@ -484,19 +506,11 @@ class EditorTextView: NSTextView {
                 return true
             }
 
-            // 이미지 파일 드롭
+            // 이미지 파일 드롭 (이미 디스크에 존재하는 파일 → 저장 불필요, 바로 삽입)
             let imageExtensions = ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "tiff"]
             let imageURLs = urls.filter { imageExtensions.contains($0.pathExtension.lowercased()) }
             if !imageURLs.isEmpty {
-                for imageURL in imageURLs {
-                    if let image = NSImage(contentsOf: imageURL) {
-                        let name = imageURL.lastPathComponent
-                        if let relativePath = onImageDrop?(image, name) {
-                            let markdown = "![\(imageURL.deletingPathExtension().lastPathComponent)](\(relativePath))"
-                            insertText(markdown, replacementRange: selectedRange())
-                        }
-                    }
-                }
+                onImageFilesDrop?(imageURLs)
                 return true
             }
         }

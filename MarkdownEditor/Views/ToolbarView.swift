@@ -5,6 +5,7 @@ import SwiftUI
 
 struct ToolbarView: View {
     var onAction: (MarkdownAction) -> Void
+    var onInsertImageFromFile: (() -> Void)?
     @State private var showTableSelector = false
 
     var body: some View {
@@ -59,8 +60,15 @@ struct ToolbarView: View {
             ToolbarButton(icon: "link", tooltip: "링크 (Link) ⌘K") {
                 onAction(.link)
             }
-            ToolbarButton(icon: "photo", tooltip: "이미지 (Image)") {
-                onAction(.image)
+            Menu {
+                Button("파일에서 삽입...") {
+                    onInsertImageFromFile?()
+                }
+                Button("URL로 삽입") {
+                    onAction(.image)
+                }
+            } label: {
+                ToolbarMenuLabel(icon: "photo", tooltip: "이미지 (Image)")
             }
 
             Divider()

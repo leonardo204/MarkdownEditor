@@ -8,10 +8,12 @@ struct PreviewView: NSViewRepresentable {
     var htmlContent: String
     var theme: PreviewTheme
     var scrollSyncManager: ScrollSyncManager?
+    @AppStorage("imageMaxWidth") private var imageMaxWidth: Double = 680
+    @AppStorage("imageRenderMode") private var imageRenderMode: String = "optimized"
 
     // HTML 변경 감지를 위한 키
     private var htmlKey: String {
-        "\(htmlContent.hashValue)_\(theme.rawValue)"
+        "\(htmlContent.hashValue)_\(theme.rawValue)_\(imageRenderMode)_\(Int(imageMaxWidth))"
     }
 
     func makeNSView(context: Context) -> WKWebView {
@@ -77,6 +79,7 @@ struct PreviewView: NSViewRepresentable {
             <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' data: blob: https: http:; img-src 'self' data: blob: https: http:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; style-src 'self' 'unsafe-inline' https:;">
             <style>
                 \(getCSS(for: theme))
+                \(imageRenderMode == "optimized" ? "img { max-width: \(Int(imageMaxWidth))px !important; }" : "img { max-width: 100% !important; }")
             </style>
             <!-- Highlight.js for code highlighting -->
             <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/\(theme == .dark ? "atom-one-dark" : "atom-one-light").min.css">

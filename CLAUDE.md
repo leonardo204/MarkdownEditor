@@ -24,7 +24,7 @@
 |------|-----|
 | 기술 스택 | macOS, AppKit + SwiftUI, swift-markdown (SPM), StoreKit 2 |
 | 빌드 방법 | `xcodebuild -project MarkdownEditor.xcodeproj -scheme MarkdownEditor -configuration Release build` |
-| 현재 버전 | v1.4.0, Build 18 |
+| 현재 버전 | v1.5.0, Build 19 |
 | 아키텍처 | 순수 AppKit 생명주기 + SwiftUI 뷰, TabService 싱글톤, 네이티브 윈도우 탭 |
 | 상태 | App Store 출시 |
 
@@ -51,4 +51,4 @@
 
 ---
 
-*최종 업데이트: 2026-03-12*
+*최종 업데이트: 2026-03-13*

@@ -83,7 +83,9 @@ class PreviewViewController: NSViewController, QLPreviewingController {
         if isPremium {
             // Full MarkdownCore rendering
             let processor = MarkdownProcessor()
-            let content = processor.convertToHTML(markdown)
+            var content = processor.convertToHTML(markdown)
+            // 로컬 이미지를 base64 data URI로 인라인 (QL extension 샌드박스 대응)
+            content = MarkdownImageHelper.embedLocalImages(in: content, documentURL: url)
             let template = HTMLTemplate()
             html = template.wrapHTML(
                 content: content,

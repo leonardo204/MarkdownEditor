@@ -67,6 +67,10 @@ class PreviewViewController: NSViewController, QLPreviewingController {
     }
 
     func preparePreviewOfFile(at url: URL) async throws {
+        // QL 시스템 제공 보안 스코프 활성화
+        let accessed = url.startAccessingSecurityScopedResource()
+        defer { if accessed { url.stopAccessingSecurityScopedResource() } }
+
         let markdown = try String(contentsOf: url, encoding: .utf8)
 
         // Detect theme from view appearance
@@ -84,8 +88,8 @@ class PreviewViewController: NSViewController, QLPreviewingController {
             // Full MarkdownCore rendering
             let processor = MarkdownProcessor()
             var content = processor.convertToHTML(markdown)
-            // 로컬 이미지를 base64 data URI로 인라인 (QL extension 샌드박스 대응)
-            content = MarkdownImageHelper.embedLocalImages(in: content, documentURL: url)
+            // QL extension 샌드박스 제약: 로컬 이미지 접근 불가 → placeholder 표시
+            content = MarkdownImageHelper.replaceLocalImagesWithPlaceholder(in: content)
             let template = HTMLTemplate()
             html = template.wrapHTML(
                 content: content,

@@ -86,6 +86,51 @@ public enum MarkdownImageHelper {
         return result
     }
 
+    /// QL extension용: 로컬 이미지를 placeholder로 치환 (샌드박스로 파일 접근 불가)
+    public static func replaceLocalImagesWithPlaceholder(in html: String) -> String {
+        let pattern = #"<img\s+([^>]*?)src="([^"]+)"([^>]*?)>"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else { return html }
+
+        let nsHTML = html as NSString
+        let matches = regex.matches(in: html, options: [], range: NSRange(location: 0, length: nsHTML.length))
+        guard !matches.isEmpty else { return html }
+
+        var result = ""
+        var lastEnd = 0
+
+        for match in matches {
+            let fullRange = match.range(at: 0)
+            let src = nsHTML.substring(with: match.range(at: 2))
+
+            // 원격 이미지와 data URI는 그대로 유지
+            if src.hasPrefix("data:") || src.hasPrefix("http://") || src.hasPrefix("https://") {
+                result += nsHTML.substring(with: NSRange(location: lastEnd, length: fullRange.location + fullRange.length - lastEnd))
+                lastEnd = fullRange.location + fullRange.length
+                continue
+            }
+
+            // 로컬 이미지 → placeholder
+            let fileName = (src as NSString).lastPathComponent.removingPercentEncoding ?? (src as NSString).lastPathComponent
+            result += nsHTML.substring(with: NSRange(location: lastEnd, length: fullRange.location - lastEnd))
+            result += """
+            <div style="display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:6px;background:rgba(128,128,128,0.1);border:1px dashed rgba(128,128,128,0.3);color:rgba(128,128,128,0.7);font-size:13px;">\
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">\
+            <rect x="3" y="3" width="18" height="18" rx="2"/>\
+            <circle cx="8.5" cy="8.5" r="1.5"/>\
+            <path d="M21 15l-5-5L5 21"/>\
+            </svg>\
+            \(fileName)</div>
+            """
+            lastEnd = fullRange.location + fullRange.length
+        }
+
+        if lastEnd < nsHTML.length {
+            result += nsHTML.substring(from: lastEnd)
+        }
+
+        return result
+    }
+
     public static func markdownImageSnippet(imageURL: URL, docDir: URL) -> String {
         let fileName = imageURL.deletingPathExtension().lastPathComponent
         let imagePath = imageURL.path

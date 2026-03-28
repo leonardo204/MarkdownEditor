@@ -121,8 +121,8 @@ struct ToolbarView: View {
 
             // 수식
             Menu {
-                Button("인라인 수식") { onAction(.inlineMath) }
-                Button("블록 수식") { onAction(.blockMath) }
+                Button("인라인 수식 (Inline formulas)") { onAction(.inlineMath) }
+                Button("블록 수식 (Block formula)") { onAction(.blockMath) }
             } label: {
                 ToolbarMenuLabel(icon: "function", tooltip: "수식 (Math)")
             }

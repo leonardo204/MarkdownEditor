@@ -80,12 +80,14 @@ class PreviewViewController: NSViewController, QLPreviewingController {
         }()
         let theme: PreviewTheme = isDark ? .dark : .light
 
-        // Check premium status via App Group
-        let isPremium = UserDefaults(suiteName: "group.com.zerolive.MarkdownEditor")?.bool(forKey: "isPremium") ?? false
+        // Check premium status and preview toggle via App Group
+        let groupDefaults = UserDefaults(suiteName: "group.com.zerolive.MarkdownEditor")
+        let isPremium = groupDefaults?.bool(forKey: "isPremium") ?? false
+        let showPreviewPane = groupDefaults?.object(forKey: "showPreviewPane") as? Bool ?? true
 
         let html: String
-        if isPremium {
-            // Full MarkdownCore rendering
+        if isPremium && showPreviewPane {
+            // Premium + Preview ON: Full MarkdownCore rendering
             let processor = MarkdownProcessor()
             var content = processor.convertToHTML(markdown)
             // QL extension 샌드박스 제약: 로컬 이미지 접근 불가 → placeholder 표시
@@ -97,7 +99,7 @@ class PreviewViewController: NSViewController, QLPreviewingController {
                 useLocalResources: false
             )
         } else {
-            // Basic preview with upgrade banner
+            // Banner + raw markdown 표시
             let escapedMarkdown = markdown
                 .replacingOccurrences(of: "&", with: "&amp;")
                 .replacingOccurrences(of: "<", with: "&lt;")
@@ -112,6 +114,24 @@ class PreviewViewController: NSViewController, QLPreviewingController {
             let bgColor = isDark ? "#1e1e1e" : "#ffffff"
             let textColor = isDark ? "#d4d4d4" : "#1e1e1e"
             let bannerBg = isDark ? "#2d2d30" : "#f0f0f0"
+
+            // 배너 메시지 결정
+            let bannerMessage: String
+            if !isPremium {
+                // 미구매자
+                bannerMessage = """
+                    Markdown Editor Premium을 구매하시면 Mermaid, KaTeX, 코드 하이라이팅이 포함된 풀 미리보기를 사용할 수 있습니다.<br>
+                    <span style="font-size: 11px; opacity: 0.7;">(앱 실행 → 설정 → Premium 탭에서 구매)</span>
+                    <div style="margin-top: 8px; font-size: 11px; opacity: 0.6;">Purchase Premium in Markdown Editor (Settings → Premium) to unlock full preview with Mermaid, KaTeX, and code highlighting.</div>
+                """
+            } else {
+                // 프리미엄 구매자 + Preview OFF
+                bannerMessage = """
+                    미리보기가 꺼져 있습니다. 설정에서 Preview를 켜면 렌더링된 미리보기를 볼 수 있습니다.<br>
+                    <span style="font-size: 11px; opacity: 0.7;">(앱 실행 → Editor 헤더의 Preview 토글 또는 설정 → General)</span>
+                    <div style="margin-top: 8px; font-size: 11px; opacity: 0.6;">Preview is disabled. Enable it in Markdown Editor (Editor header Preview toggle or Settings → General) to see rendered preview.</div>
+                """
+            }
 
             html = """
             <!DOCTYPE html>
@@ -151,9 +171,7 @@ class PreviewViewController: NSViewController, QLPreviewingController {
             </head>
             <body>
                 <div class="banner">
-                    Markdown Editor Premium을 구매하시면 Mermaid, KaTeX, 코드 하이라이팅이 포함된 풀 미리보기를 사용할 수 있습니다.<br>
-                    <span style="font-size: 11px; opacity: 0.7;">(앱 실행 → 설정 → Premium 탭에서 구매)</span>
-                    <div style="margin-top: 8px; font-size: 11px; opacity: 0.6;">Purchase Premium in Markdown Editor (Settings → Premium) to unlock full preview with Mermaid, KaTeX, and code highlighting.</div>
+                    \(bannerMessage)
                 </div>
                 <div class="filename">\(fileName)</div>
                 <pre>\(escapedMarkdown)</pre>

@@ -24,13 +24,14 @@
 |------|-----|
 | 기술 스택 | macOS, AppKit + SwiftUI, swift-markdown (SPM), StoreKit 2 |
 | 빌드 방법 | `xcodebuild -project MarkdownEditor.xcodeproj -scheme MarkdownEditor -configuration Release build` |
-| 현재 버전 | v1.5.1, Build 21 |
+| 현재 버전 | v1.5.2, Build 22 |
 | 아키텍처 | 순수 AppKit 생명주기 + SwiftUI 뷰, TabService 싱글톤, 네이티브 윈도우 탭 |
 | 상태 | App Store 출시 |
 
 ### 주요 기능
 
 - swift-markdown 기반 마크다운 렌더링 (AST → HTML)
+- 프리뷰 on/off 토글 (에디터 헤더 + 설정 > General)
 - 찾기/바꾸기, 아웃라인 사이드바, 포커스/타자기 모드
 - 자동 저장 (3초 디바운스), 외부 파일 변경 감지
 - PDF/HTML 내보내기, 이미지 드래그 앤 드롭/붙여넣기
@@ -51,4 +52,4 @@
 
 ---
 
-*최종 업데이트: 2026-03-16*
+*최종 업데이트: 2026-03-28*

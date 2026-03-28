@@ -1,5 +1,21 @@
 # 변경 이력
 
+## v1.5.2 (Build 22)
+- feat: 프리뷰 on/off 토글 기능 추가
+  - Editor 헤더에 Preview 토글 스위치 (SF Symbol + 텍스트)
+  - 설정 > General에 Preview Pane 토글 추가
+  - 프리뷰 off 시 에디터가 전체 너비를 차지
+  - 프리뷰 off 시 HTML 렌더링 중단으로 성능 최적화
+  - 앱 전역 설정 (UserDefaults 저장)
+- fix: 라인 번호 스크롤 동기화 개선
+  - SwiftUI ScrollView → NSView 기반 네이티브 렌더링으로 재작성
+  - 에디터 스크롤과 라인 번호가 정확히 동기화
+  - 보이는 라인만 그려서 대용량 파일 성능 향상
+- feat: Quick Look 프리뷰 토글 연동
+  - 프리미엄 + Preview ON: 풀 렌더링
+  - 프리미엄 + Preview OFF: 안내 배너 + raw 마크다운
+  - 미구매: 구매 배너 + raw 마크다운
+
 ## v1.4.0 (Build 18)
 - feat: Quick Look Preview Extension 추가 (Premium)
   - Finder에서 마크다운 파일 스페이스바로 풀 렌더링 미리보기

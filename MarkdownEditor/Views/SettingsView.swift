@@ -203,6 +203,7 @@ struct PreviewSettingsView: View {
 struct GeneralSettingsView: View {
     @AppStorage("syncScrolling") private var syncScrolling: Bool = true
     @AppStorage("openFilesInNewTab") private var openFilesInNewTab: Bool = true
+    @AppStorage("showPreviewPane") private var showPreviewPane: Bool = true
     @State private var showingShortcuts = false
 
     var body: some View {
@@ -230,6 +231,21 @@ struct GeneralSettingsView: View {
                 Toggle("", isOn: $syncScrolling)
                     .labelsHidden()
                 Text("Sync editor and preview")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Spacer()
+            }
+
+            Divider()
+                .padding(.vertical, 4)
+
+            // 미리보기 패널 표시
+            HStack {
+                Text("Preview Pane")
+                    .frame(width: 100, alignment: .leading)
+                Toggle("", isOn: $showPreviewPane)
+                    .labelsHidden()
+                Text("Show preview panel")
                     .font(.caption)
                     .foregroundColor(.secondary)
                 Spacer()

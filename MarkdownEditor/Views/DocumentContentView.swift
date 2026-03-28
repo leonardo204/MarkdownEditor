@@ -133,6 +133,9 @@ struct DocumentContentView: View {
             guard isMyWindow(n) else { return }
             handleInsertImageFromFile()
         }
+        .onChange(of: appState.showPreviewPane) { show in
+            if show { updatePreview() }
+        }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("RequestSaveBeforeImage"))) { notification in
             handleSaveBeforeImageDrop(notification: notification)
         }
@@ -148,6 +151,9 @@ struct DocumentContentView: View {
     // MARK: - 프리뷰 업데이트
 
     private func updatePreview() {
+        // 프리뷰가 꺼져 있으면 HTML 변환 스킵
+        guard appState.showPreviewPane else { return }
+
         var html = markdownProcessor.convertToHTML(documentManager.content)
         // 로컬 이미지를 base64 data URI로 인라인 (WKWebView 샌드박스 대응)
         if let docURL = documentManager.currentFileURL {

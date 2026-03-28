@@ -12,6 +12,7 @@ class AppState: ObservableObject {
 
     // MARK: - 미리보기 설정
     @Published var autoReloadPreview: Bool = true
+    @Published var showPreviewPane: Bool = true
 
     // MARK: - 에디터 설정
     @Published var showLineNumbers: Bool = true
@@ -47,6 +48,7 @@ class AppState: ObservableObject {
         }
 
         autoReloadPreview = defaults.object(forKey: "autoReloadPreview") as? Bool ?? true
+        showPreviewPane = defaults.object(forKey: "showPreviewPane") as? Bool ?? true
         showLineNumbers = defaults.object(forKey: "showLineNumbers") as? Bool ?? true
 
         let savedFontSize = defaults.float(forKey: "fontSize")
@@ -108,6 +110,12 @@ class AppState: ObservableObject {
         if showLineNumbers != savedShowLineNumbers {
             showLineNumbers = savedShowLineNumbers
         }
+
+        // 미리보기 패널 표시
+        let savedShowPreviewPane = defaults.object(forKey: "showPreviewPane") as? Bool ?? true
+        if showPreviewPane != savedShowPreviewPane {
+            showPreviewPane = savedShowPreviewPane
+        }
     }
 
     // MARK: - 설정 저장
@@ -116,11 +124,17 @@ class AppState: ObservableObject {
         defaults.set(editorTheme.rawValue, forKey: "editorTheme")
         defaults.set(previewTheme.rawValue, forKey: "previewTheme")
         defaults.set(autoReloadPreview, forKey: "autoReloadPreview")
+        defaults.set(showPreviewPane, forKey: "showPreviewPane")
         defaults.set(showLineNumbers, forKey: "showLineNumbers")
         defaults.set(Float(fontSize), forKey: "fontSize")
         defaults.set(fontName, forKey: "fontName")
         defaults.set(openFilesInNewTab, forKey: "openFilesInNewTab")
         defaults.set(outlineScrollTarget.rawValue, forKey: "outlineScrollTarget")
+
+        // App Group에 Quick Look용 설정 동기화
+        if let groupDefaults = UserDefaults(suiteName: "group.com.zerolive.MarkdownEditor") {
+            groupDefaults.set(showPreviewPane, forKey: "showPreviewPane")
+        }
     }
 }
 

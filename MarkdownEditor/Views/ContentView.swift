@@ -182,9 +182,18 @@ struct EditorPreviewSplitView: View {
             }
 
             // 에디터 + 미리보기 분할
-            HSplitView {
-                editorPanel
-                previewPanel
+            GeometryReader { geo in
+                if appState.showPreviewPane {
+                    HSplitView {
+                        editorPanel
+                            .frame(minWidth: 300, idealWidth: geo.size.width / 2)
+                        previewPanel
+                            .frame(minWidth: 300, idealWidth: geo.size.width / 2)
+                    }
+                    .id("split_\(appState.showPreviewPane)")
+                } else {
+                    editorPanel
+                }
             }
         }
     }
@@ -193,7 +202,7 @@ struct EditorPreviewSplitView: View {
     private var editorPanel: some View {
         VStack(spacing: 0) {
             // 에디터 헤더
-            EditorHeader(theme: $appState.editorTheme)
+            EditorHeader(theme: $appState.editorTheme, appState: appState)
                 .fixedSize(horizontal: false, vertical: true)
 
             Divider()
@@ -230,7 +239,6 @@ struct EditorPreviewSplitView: View {
             StatusBarView(content: documentManager.content)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .frame(minWidth: 300)
     }
 
     // 미리보기 패널
@@ -251,7 +259,6 @@ struct EditorPreviewSplitView: View {
                 scrollSyncManager: scrollSyncManager
             )
         }
-        .frame(minWidth: 300)
     }
 }
 
@@ -270,6 +277,7 @@ extension FocusedValues {
 // MARK: - 에디터 헤더
 struct EditorHeader: View {
     @Binding var theme: EditorTheme
+    @ObservedObject var appState: AppState
 
     var body: some View {
         HStack {
@@ -278,6 +286,27 @@ struct EditorHeader: View {
                 .foregroundColor(.secondary)
 
             Spacer()
+
+            // 미리보기 토글
+            Toggle(isOn: Binding(
+                get: { appState.showPreviewPane },
+                set: { newValue in
+                    appState.showPreviewPane = newValue
+                    appState.saveSettings()
+                }
+            )) {
+                HStack(spacing: 4) {
+                    Image(systemName: appState.showPreviewPane ? "rectangle.split.2x1.fill" : "rectangle.fill")
+                        .font(.system(size: 12))
+                    Text("Preview")
+                        .font(.system(size: 11))
+                }
+                .foregroundColor(appState.showPreviewPane ? .accentColor : .secondary)
+            }
+            .toggleStyle(.switch)
+            .controlSize(.mini)
+            .help(appState.showPreviewPane ? "Hide Preview" : "Show Preview")
+            .accessibilityLabel(appState.showPreviewPane ? "Hide Preview" : "Show Preview")
 
             // 테마 선택
             Picker("Theme", selection: $theme) {

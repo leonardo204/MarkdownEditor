@@ -98,6 +98,7 @@ struct SimpleEditorView: View {
     var typewriterMode: Bool = false
 
     @State private var lineCount: Int = 1
+    @State private var editorScrollOffset: CGFloat = 0
 
     var body: some View {
         HStack(spacing: 0) {
@@ -106,8 +107,10 @@ struct SimpleEditorView: View {
                 LineNumberView(
                     lineCount: lineCount,
                     theme: theme,
-                    fontSize: fontSize
+                    fontSize: fontSize,
+                    scrollOffset: editorScrollOffset
                 )
+                .frame(width: 44)
             }
 
             // NSTextView 기반 에디터
@@ -116,6 +119,7 @@ struct SimpleEditorView: View {
                 theme: theme,
                 fontSize: fontSize,
                 lineCount: $lineCount,
+                editorScrollOffset: $editorScrollOffset,
                 onFileDrop: onFileDrop,
                 onImageDrop: onImageDrop,
                 onImageFilesDrop: onImageFilesDrop,
@@ -145,6 +149,7 @@ struct MarkdownNSTextView: NSViewRepresentable {
     var theme: EditorTheme
     var fontSize: CGFloat
     @Binding var lineCount: Int
+    @Binding var editorScrollOffset: CGFloat
     var onFileDrop: (([URL]) -> Void)?
     var onImageDrop: ((NSImage, String) -> String?)?
     var onImageFilesDrop: (([URL]) -> Void)?
@@ -264,7 +269,7 @@ struct MarkdownNSTextView: NSViewRepresentable {
     }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(content: $content, lineCount: $lineCount, onContentChange: onContentChange)
+        Coordinator(content: $content, lineCount: $lineCount, editorScrollOffset: $editorScrollOffset, onContentChange: onContentChange)
     }
 
     private func applyTheme(to textView: NSTextView) {
@@ -283,15 +288,17 @@ struct MarkdownNSTextView: NSViewRepresentable {
     class Coordinator: NSObject, NSTextViewDelegate {
         var content: Binding<String>
         var lineCount: Binding<Int>
+        var editorScrollOffset: Binding<CGFloat>
         var onContentChange: ((String) -> Void)?
         var onCursorLineChange: ((Int) -> Void)?
         var scrollSyncManager: ScrollSyncManager?
         var isUpdating = false
         private var lastSelectionTime: CFTimeInterval = 0
 
-        init(content: Binding<String>, lineCount: Binding<Int>, onContentChange: ((String) -> Void)?) {
+        init(content: Binding<String>, lineCount: Binding<Int>, editorScrollOffset: Binding<CGFloat>, onContentChange: ((String) -> Void)?) {
             self.content = content
             self.lineCount = lineCount
+            self.editorScrollOffset = editorScrollOffset
             self.onContentChange = onContentChange
         }
 
@@ -338,6 +345,11 @@ struct MarkdownNSTextView: NSViewRepresentable {
         }
 
         @objc func scrollViewDidScroll(_ notification: Notification) {
+            // 라인 번호 스크롤 동기화
+            if let clipView = notification.object as? NSClipView {
+                editorScrollOffset.wrappedValue = clipView.bounds.origin.y
+            }
+
             scrollSyncManager?.editorDidScroll()
 
             // 커서 이동 직후(아웃라인 클릭 등)에는 스크롤 기반 업데이트 억제
@@ -550,33 +562,71 @@ class EditorTextView: NSTextView {
     }
 }
 
-// MARK: - 라인 번호 뷰
-struct LineNumberView: View {
+// MARK: - 라인 번호 뷰 (NSView 기반 — 보이는 라인만 그려서 성능 최적화)
+struct LineNumberView: NSViewRepresentable {
     let lineCount: Int
     let theme: EditorTheme
     let fontSize: CGFloat
+    var scrollOffset: CGFloat = 0
 
-    var body: some View {
-        ScrollView(.vertical, showsIndicators: false) {
-            VStack(alignment: .trailing, spacing: 0) {
-                ForEach(1...max(1, lineCount), id: \.self) { number in
-                    Text("\(number)")
-                        .font(.system(size: fontSize * 0.85, design: .monospaced))
-                        .foregroundColor(Color(theme.lineNumberColor))
-                        .frame(height: fontSize * 1.35)
-                }
-            }
-            .padding(.top, 8)
-            .padding(.trailing, 8)
-            .padding(.leading, 4)
+    func makeNSView(context: Context) -> LineNumberNSView {
+        let view = LineNumberNSView()
+        view.update(lineCount: lineCount, theme: theme, fontSize: fontSize, scrollOffset: scrollOffset)
+        return view
+    }
+
+    func updateNSView(_ view: LineNumberNSView, context: Context) {
+        view.update(lineCount: lineCount, theme: theme, fontSize: fontSize, scrollOffset: scrollOffset)
+        view.needsDisplay = true
+    }
+}
+
+class LineNumberNSView: NSView {
+    private var lineCount: Int = 1
+    private var scrollOffset: CGFloat = 0
+    private var editorFontSize: CGFloat = 14
+    private var textColor: NSColor = .secondaryLabelColor
+    private var bgColor: NSColor = .windowBackgroundColor
+    private var borderColor: NSColor = .separatorColor
+
+    override var isFlipped: Bool { true }
+
+    func update(lineCount: Int, theme: EditorTheme, fontSize: CGFloat, scrollOffset: CGFloat) {
+        self.lineCount = lineCount
+        self.editorFontSize = fontSize
+        self.scrollOffset = scrollOffset
+        self.textColor = theme.lineNumberColor
+        self.bgColor = theme.gutterBackgroundColor
+        self.borderColor = theme.gutterBorderColor
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        // 배경
+        bgColor.setFill()
+        bounds.fill()
+
+        let lineHeight = editorFontSize * 1.35
+        let topPadding: CGFloat = 8
+        let font = NSFont.monospacedSystemFont(ofSize: editorFontSize * 0.85, weight: .regular)
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: textColor
+        ]
+
+        // 보이는 영역만 계산하여 그리기
+        let firstLine = max(1, Int((scrollOffset - topPadding) / lineHeight) + 1)
+        let lastLine = min(lineCount, Int((scrollOffset + bounds.height - topPadding) / lineHeight) + 2)
+
+        for line in firstLine...max(firstLine, lastLine) {
+            let y = topPadding + CGFloat(line - 1) * lineHeight - scrollOffset
+            let str = "\(line)"
+            let size = (str as NSString).size(withAttributes: attrs)
+            let x = bounds.width - size.width - 9  // 8px 우측 패딩 + 1px 보더
+            (str as NSString).draw(at: NSPoint(x: x, y: y + (lineHeight - size.height) / 2), withAttributes: attrs)
         }
-        .frame(width: 44)
-        .background(Color(theme.gutterBackgroundColor))
-        .overlay(
-            Rectangle()
-                .frame(width: 1)
-                .foregroundColor(Color(theme.gutterBorderColor)),
-            alignment: .trailing
-        )
+
+        // 우측 보더
+        borderColor.setFill()
+        NSRect(x: bounds.width - 1, y: 0, width: 1, height: bounds.height).fill()
     }
 }

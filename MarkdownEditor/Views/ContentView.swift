@@ -256,7 +256,8 @@ struct EditorPreviewSplitView: View {
             PreviewView(
                 htmlContent: htmlContent,
                 theme: appState.previewTheme,
-                scrollSyncManager: scrollSyncManager
+                scrollSyncManager: scrollSyncManager,
+                documentURL: documentManager.currentFileURL
             )
         }
     }

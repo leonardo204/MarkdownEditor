@@ -46,35 +46,32 @@ public enum MarkdownImageHelper {
                 imageURL = docDir.appendingPathComponent(decoded)
             }
 
-            // 파일 읽기
-            guard FileManager.default.fileExists(atPath: imageURL.path),
-                  let data = try? Data(contentsOf: imageURL) else {
-                result += nsHTML.substring(with: NSRange(location: lastEnd, length: fullRange.location + fullRange.length - lastEnd))
-                lastEnd = fullRange.location + fullRange.length
-                continue
+            // 파일 읽기 → base64 임베딩 시도
+            let newSrc: String
+            if FileManager.default.fileExists(atPath: imageURL.path),
+               let data = try? Data(contentsOf: imageURL) {
+                let ext = imageURL.pathExtension.lowercased()
+                let mime: String
+                switch ext {
+                case "png": mime = "image/png"
+                case "jpg", "jpeg": mime = "image/jpeg"
+                case "gif": mime = "image/gif"
+                case "svg": mime = "image/svg+xml"
+                case "webp": mime = "image/webp"
+                case "bmp": mime = "image/bmp"
+                case "tiff", "tif": mime = "image/tiff"
+                default: mime = "image/png"
+                }
+                newSrc = "data:\(mime);base64,\(data.base64EncodedString())"
+            } else {
+                // 샌드박스로 파일 읽기 실패 → 절대 file:// URL로 변환 (WKWebView가 직접 로드)
+                newSrc = imageURL.absoluteString
             }
 
-            let ext = imageURL.pathExtension.lowercased()
-            let mime: String
-            switch ext {
-            case "png": mime = "image/png"
-            case "jpg", "jpeg": mime = "image/jpeg"
-            case "gif": mime = "image/gif"
-            case "svg": mime = "image/svg+xml"
-            case "webp": mime = "image/webp"
-            case "bmp": mime = "image/bmp"
-            case "tiff", "tif": mime = "image/tiff"
-            default: mime = "image/png"
-            }
-
-            let base64 = data.base64EncodedString()
-            let dataURI = "data:\(mime);base64,\(base64)"
-
-            // match 앞의 원본 텍스트 + 치환된 img 태그
             result += nsHTML.substring(with: NSRange(location: lastEnd, length: fullRange.location - lastEnd))
             let beforeSrc = nsHTML.substring(with: match.range(at: 1))
             let afterSrc = nsHTML.substring(with: match.range(at: 3))
-            result += "<img \(beforeSrc)src=\"\(dataURI)\"\(afterSrc)>"
+            result += "<img \(beforeSrc)src=\"\(newSrc)\"\(afterSrc)>"
             lastEnd = fullRange.location + fullRange.length
         }
 

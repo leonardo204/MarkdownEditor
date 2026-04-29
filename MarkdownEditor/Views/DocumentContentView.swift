@@ -20,6 +20,9 @@ struct DocumentContentView: View {
     // HTML 콘텐츠 (프리뷰용)
     @State private var htmlContent: String = ""
 
+    // 디렉토리 접근 요청 여부 (뷰 생성 시마다 리셋 — 의도적)
+    @State private var hasRequestedDirectoryAccess = false
+
     // 아웃라인 표시 여부
     @State private var showOutline: Bool = false
 
@@ -158,6 +161,19 @@ struct DocumentContentView: View {
         // 로컬 이미지를 base64 data URI로 인라인 (WKWebView 샌드박스 대응)
         if let docURL = documentManager.currentFileURL {
             html = MarkdownImageHelper.embedLocalImages(in: html, documentURL: docURL)
+
+            // 이미지 임베딩 실패 확인 (file:// URL이 남아있으면 sandbox 차단)
+            if html.contains("src=\"file://") && !hasRequestedDirectoryAccess {
+                hasRequestedDirectoryAccess = true
+                DirectoryBookmarkManager.shared.requestAccess(forDirectoryOf: docURL) { granted in
+                    if granted {
+                        // 접근 권한 획득 후 재시도
+                        DispatchQueue.main.async {
+                            self.updatePreview()
+                        }
+                    }
+                }
+            }
         }
         htmlContent = html
     }

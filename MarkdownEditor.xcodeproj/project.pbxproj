@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		DIRBKM001AF62F00413E11465 /* DirectoryBookmarkManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = DIRBKM001AF62F00413E11464 /* DirectoryBookmarkManager.swift */; };
 		015AD3B4955E3561C5D1024A /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CAE6BA3D9B5447DADFF76CF /* AppState.swift */; };
 		0EA35FF78604BFA321D598CA /* MarkdownDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8C248FE483DBE9D113EFEB2 /* MarkdownDocument.swift */; };
 		1FA64B912F0253A000947CB6 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1FA64B902F0253A000947CB6 /* Assets.xcassets */; };
@@ -83,6 +84,7 @@
 		495CA61B8869CB463712583F /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		4B9B583FEA2240924E3E652F /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		4D474E70510096A4B84F934C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		DIRBKM001AF62F00413E11464 /* DirectoryBookmarkManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DirectoryBookmarkManager.swift; sourceTree = "<group>"; };
 		5CAE6BA3D9B5447DADFF76CF /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		74A050CE0D0294B0B6278F2B /* EditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorView.swift; sourceTree = "<group>"; };
 		99BBFC134DD17A6E3FA5C9D5 /* ToolbarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolbarView.swift; sourceTree = "<group>"; };
@@ -250,6 +252,7 @@
 			isa = PBXGroup;
 			children = (
 				5CAE6BA3D9B5447DADFF76CF /* AppState.swift */,
+				DIRBKM001AF62F00413E11464 /* DirectoryBookmarkManager.swift */,
 				A8C248FE483DBE9D113EFEB2 /* MarkdownDocument.swift */,
 				TAB001BFAF62F00413E114664 /* TabManager.swift */,
 			);
@@ -414,6 +417,7 @@
 			files = (
 				015AD3B4955E3561C5D1024A /* AppState.swift in Sources */,
 				9D89EB90AE62A1677EDE4858 /* ContentView.swift in Sources */,
+				DIRBKM001AF62F00413E11465 /* DirectoryBookmarkManager.swift in Sources */,
 				DOCCONTENT001AF62F0041465 /* DocumentContentView.swift in Sources */,
 				WINMGT002AF62F00413E11465 /* DocumentWindowController.swift in Sources */,
 				44071A816C7DA46E51C4C5EE /* EditorView.swift in Sources */,
@@ -456,7 +460,7 @@
 				CODE_SIGN_ENTITLEMENTS = MarkdownQuickLook/MarkdownQuickLook.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 22;
+				CURRENT_PROJECT_VERSION = 23;
 				DEVELOPMENT_TEAM = XU8HS9JUTS;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -478,7 +482,7 @@
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 1.5.2;
+				MARKETING_VERSION = 1.5.3;
 				PRODUCT_BUNDLE_IDENTIFIER = com.zerolive.MarkdownEditor.MarkdownQuickLook;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -499,7 +503,7 @@
 				CODE_SIGN_ENTITLEMENTS = MarkdownQuickLook/MarkdownQuickLook.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 22;
+				CURRENT_PROJECT_VERSION = 23;
 				DEVELOPMENT_TEAM = XU8HS9JUTS;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -517,7 +521,7 @@
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 1.5.2;
+				MARKETING_VERSION = 1.5.3;
 				PRODUCT_BUNDLE_IDENTIFIER = com.zerolive.MarkdownEditor.MarkdownQuickLook;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -689,7 +693,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 22;
+				CURRENT_PROJECT_VERSION = 23;
 				DEVELOPMENT_TEAM = XU8HS9JUTS;
 				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = MarkdownEditor/Info.plist;
@@ -698,7 +702,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 1.5.2;
+				MARKETING_VERSION = 1.5.3;
 				PRODUCT_BUNDLE_IDENTIFIER = com.zerolive.MarkdownEditor;
 				PRODUCT_NAME = MarkdownEditor;
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -716,7 +720,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 22;
+				CURRENT_PROJECT_VERSION = 23;
 				DEVELOPMENT_TEAM = XU8HS9JUTS;
 				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = MarkdownEditor/Info.plist;
@@ -725,7 +729,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 1.5.2;
+				MARKETING_VERSION = 1.5.3;
 				PRODUCT_BUNDLE_IDENTIFIER = com.zerolive.MarkdownEditor;
 				PRODUCT_NAME = MarkdownEditor;
 				PROVISIONING_PROFILE_SPECIFIER = "";

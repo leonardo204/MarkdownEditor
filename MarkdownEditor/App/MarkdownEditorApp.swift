@@ -142,6 +142,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         // Security-scoped resource 접근
         for url in validURLs {
             _ = url.startAccessingSecurityScopedResource()
+            // 저장된 디렉토리 bookmark으로 부모 디렉토리 접근 시도 (이미지 로드용)
+            _ = DirectoryBookmarkManager.shared.startAccessing(directoryOf: url)
         }
 
         // TabService를 통해 파일 열기

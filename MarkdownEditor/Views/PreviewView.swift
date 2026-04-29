@@ -8,6 +8,7 @@ struct PreviewView: NSViewRepresentable {
     var htmlContent: String
     var theme: PreviewTheme
     var scrollSyncManager: ScrollSyncManager?
+    var documentURL: URL?
     @AppStorage("imageMaxWidth") private var imageMaxWidth: Double = 680
     @AppStorage("imageRenderMode") private var imageRenderMode: String = "optimized"
 
@@ -27,9 +28,10 @@ struct PreviewView: NSViewRepresentable {
         preferences.allowsContentJavaScript = true
         configuration.defaultWebpagePreferences = preferences
 
-        // 스크롤 이벤트를 Swift로 전달하기 위한 스크립트 메시지 핸들러
+        // 스크롤/링크 이벤트를 Swift로 전달하기 위한 스크립트 메시지 핸들러
         let userContentController = WKUserContentController()
         userContentController.add(context.coordinator, name: "scrollHandler")
+        userContentController.add(context.coordinator, name: "linkHandler")
         configuration.userContentController = userContentController
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
@@ -58,7 +60,9 @@ struct PreviewView: NSViewRepresentable {
             context.coordinator.lastHtmlKey = currentKey
 
             let fullHTML = wrapHTML(content: htmlContent, theme: theme)
-            webView.loadHTMLString(fullHTML, baseURL: Bundle.main.resourceURL)
+
+            let baseURL = documentURL?.deletingLastPathComponent() ?? Bundle.main.resourceURL
+            webView.loadHTMLString(fullHTML, baseURL: baseURL)
         }
     }
 
@@ -79,7 +83,7 @@ struct PreviewView: NSViewRepresentable {
             <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' data: blob: https: http:; img-src 'self' data: blob: https: http:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; style-src 'self' 'unsafe-inline' https:;">
             <style>
                 \(getCSS(for: theme))
-                \(imageRenderMode == "optimized" ? "img { max-width: \(Int(imageMaxWidth))px !important; }" : "img { max-width: 100% !important; }")
+                \(imageRenderMode == "optimized" ? "img { max-width: \(Int(imageMaxWidth))px !important; } img.img-wide { max-width: 100% !important; width: 100% !important; }" : "img { max-width: 100% !important; }")
             </style>
             <!-- Highlight.js for code highlighting -->
             <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/\(theme == .dark ? "atom-one-dark" : "atom-one-light").min.css">
@@ -141,6 +145,18 @@ struct PreviewView: NSViewRepresentable {
                         });
                     }
 
+                    // optimized 모드: 원본 너비가 설정 max-width의 2배 초과 이미지는 전체 너비로 표시
+                    var imgMaxW = \(Int(imageMaxWidth));
+                    document.querySelectorAll('img').forEach(function(img) {
+                        function checkWide() {
+                            if (img.naturalWidth > imgMaxW * 2) {
+                                img.classList.add('img-wide');
+                            }
+                        }
+                        if (img.complete) checkWide();
+                        else img.addEventListener('load', checkWide);
+                    });
+
                     // PlantUML 다이어그램 처리 (Kroki 서비스 사용 - 한글 지원)
                     document.querySelectorAll('.plantuml').forEach(async (element) => {
                         const code = element.getAttribute('data-code');
@@ -176,6 +192,18 @@ struct PreviewView: NSViewRepresentable {
                     }
                     return btoa(text);
                 }
+
+                // 링크 클릭 인터셉트 (loadHTMLString에서 file:// 네비게이션이 delegate에 전달되지 않는 문제 우회)
+                document.addEventListener('click', function(e) {
+                    var a = e.target.closest('a[href]');
+                    if (!a) return;
+                    var href = a.getAttribute('href');
+                    if (!href || href.startsWith('#') || href.startsWith('javascript:')) return;
+                    e.preventDefault();
+                    if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.linkHandler) {
+                        window.webkit.messageHandlers.linkHandler.postMessage(href);
+                    }
+                });
 
                 // 스크롤 동기화를 위한 스크롤 이벤트 핸들러
                 let scrollPending = false;
@@ -295,11 +323,42 @@ struct PreviewView: NSViewRepresentable {
             }
         }
 
-        // JavaScript에서 스크롤 이벤트 수신
+        // JavaScript에서 스크롤/링크 이벤트 수신
         func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
             if message.name == "scrollHandler",
                let scrollPercent = message.body as? Double {
                 scrollSyncManager?.previewDidScroll(scrollPercent: scrollPercent)
+            } else if message.name == "linkHandler",
+                      let href = message.body as? String {
+                handleLinkClick(href, in: message.webView)
+            }
+        }
+
+        private func handleLinkClick(_ href: String, in webView: WKWebView?) {
+            // 외부 링크
+            if href.hasPrefix("http://") || href.hasPrefix("https://") {
+                if let url = URL(string: href) {
+                    NSWorkspace.shared.open(url)
+                }
+                return
+            }
+
+            // 상대 경로 → 절대 file:// URL로 해석
+            let resolvedURL: URL
+            if href.hasPrefix("file://") {
+                guard let url = URL(string: href) else { return }
+                resolvedURL = url
+            } else if let docURL = parent.documentURL {
+                let docDir = docURL.deletingLastPathComponent()
+                resolvedURL = docDir.appendingPathComponent(href).standardized
+            } else {
+                return
+            }
+
+            let ext = resolvedURL.pathExtension.lowercased()
+            if ext == "md" || ext == "markdown" || ext == "txt" {
+                _ = DirectoryBookmarkManager.shared.startAccessing(directoryOf: resolvedURL)
+                TabService.shared.openDocument(url: resolvedURL)
             }
         }
     }

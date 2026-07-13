@@ -88,3 +88,6 @@ sample-video.mov
 .claude/.hook_feedback
 .claude/.project_root
 .claude/.messenger_enabled
+.claude/.cost_state
+.claude/db/context.db-shm
+.claude/db/context.db-wal

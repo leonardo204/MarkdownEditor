@@ -257,6 +257,7 @@ struct EditorPreviewSplitView: View {
                 htmlContent: htmlContent,
                 theme: appState.previewTheme,
                 scrollSyncManager: scrollSyncManager,
+                findReplaceManager: findReplaceManager,
                 documentURL: documentManager.currentFileURL
             )
         }

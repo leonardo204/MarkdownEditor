@@ -211,6 +211,7 @@ struct MarkdownNSTextView: NSViewRepresentable {
 
         // 찾기/바꾸기 매니저에 텍스트뷰 연결
         findReplaceManager?.textView = textView
+        context.coordinator.findReplaceManager = findReplaceManager
 
         // 커서 라인 콜백 연결
         context.coordinator.onCursorLineChange = onCursorLineChange
@@ -266,6 +267,7 @@ struct MarkdownNSTextView: NSViewRepresentable {
 
         // 찾기/바꾸기 매니저 업데이트
         findReplaceManager?.textView = textView
+        context.coordinator.findReplaceManager = findReplaceManager
     }
 
     func makeCoordinator() -> Coordinator {
@@ -292,6 +294,7 @@ struct MarkdownNSTextView: NSViewRepresentable {
         var onContentChange: ((String) -> Void)?
         var onCursorLineChange: ((Int) -> Void)?
         var scrollSyncManager: ScrollSyncManager?
+        weak var findReplaceManager: FindReplaceManager?
         var isUpdating = false
         private var lastSelectionTime: CFTimeInterval = 0
 
@@ -309,6 +312,9 @@ struct MarkdownNSTextView: NSViewRepresentable {
         // 커서 이동 시 현재 라인 번호 계산 및 포커스/타자기 모드 처리
         func textViewDidChangeSelection(_ notification: Notification) {
             guard let textView = notification.object as? EditorTextView else { return }
+
+            // 에디터에서 커서 이동 발생 → 검색 대상 자동 선택용으로 에디터를 활성으로 표시
+            findReplaceManager?.markEditorActive()
 
             // 현재 라인 번호 계산
             let text = textView.string

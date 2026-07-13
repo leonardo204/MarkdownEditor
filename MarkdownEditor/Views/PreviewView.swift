@@ -8,6 +8,7 @@ struct PreviewView: NSViewRepresentable {
     var htmlContent: String
     var theme: PreviewTheme
     var scrollSyncManager: ScrollSyncManager?
+    var findReplaceManager: FindReplaceManager?
     var documentURL: URL?
     @AppStorage("imageMaxWidth") private var imageMaxWidth: Double = 680
     @AppStorage("imageRenderMode") private var imageRenderMode: String = "optimized"
@@ -32,6 +33,7 @@ struct PreviewView: NSViewRepresentable {
         let userContentController = WKUserContentController()
         userContentController.add(context.coordinator, name: "scrollHandler")
         userContentController.add(context.coordinator, name: "linkHandler")
+        userContentController.add(context.coordinator, name: "focusHandler")
         configuration.userContentController = userContentController
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
@@ -44,6 +46,10 @@ struct PreviewView: NSViewRepresentable {
         scrollSyncManager?.previewWebView = webView
         context.coordinator.scrollSyncManager = scrollSyncManager
 
+        // 찾기 매니저에 프리뷰 웹뷰 등록
+        findReplaceManager?.previewWebView = webView
+        context.coordinator.findReplaceManager = findReplaceManager
+
         return webView
     }
 
@@ -51,6 +57,10 @@ struct PreviewView: NSViewRepresentable {
         // 스크롤 동기화 매니저 업데이트
         scrollSyncManager?.previewWebView = webView
         context.coordinator.scrollSyncManager = scrollSyncManager
+
+        // 찾기 매니저 업데이트
+        findReplaceManager?.previewWebView = webView
+        context.coordinator.findReplaceManager = findReplaceManager
 
         // HTML이 변경된 경우에만 다시 로드
         // 편집으로 인한 업데이트 시에는 스크롤 복원하지 않음
@@ -84,6 +94,9 @@ struct PreviewView: NSViewRepresentable {
             <style>
                 \(getCSS(for: theme))
                 \(imageRenderMode == "optimized" ? "img { max-width: \(Int(imageMaxWidth))px !important; } img.img-wide { max-width: 100% !important; width: 100% !important; }" : "img { max-width: 100% !important; }")
+                /* 찾기 하이라이트 */
+                mark.me-find { background-color: rgba(255, 235, 59, 0.5); color: inherit; border-radius: 2px; padding: 0; }
+                mark.me-find.me-find-current { background-color: rgba(255, 145, 0, 0.95); color: #000; }
             </style>
             <!-- Highlight.js for code highlighting -->
             <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/\(theme == .dark ? "atom-one-dark" : "atom-one-light").min.css">
@@ -227,6 +240,118 @@ struct PreviewView: NSViewRepresentable {
                         scrollPending = false;
                     });
                 }, { passive: true });
+
+                // 프리뷰에서 사용자 상호작용 발생 시 Swift에 알림 (검색 대상 자동 선택용)
+                function meNotifyFocus() {
+                    if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.focusHandler) {
+                        window.webkit.messageHandlers.focusHandler.postMessage('preview');
+                    }
+                }
+                document.addEventListener('mousedown', meNotifyFocus, true);
+                document.addEventListener('focusin', meNotifyFocus, true);
+
+                // 프리뷰 내 텍스트 검색/하이라이트
+                (function() {
+                    var matches = [];
+                    var currentIndex = -1;
+
+                    function clearHighlights() {
+                        var marks = document.querySelectorAll('mark.me-find');
+                        for (var i = 0; i < marks.length; i++) {
+                            var m = marks[i];
+                            var parent = m.parentNode;
+                            if (!parent) continue;
+                            while (m.firstChild) parent.insertBefore(m.firstChild, m);
+                            parent.removeChild(m);
+                            parent.normalize();
+                        }
+                        matches = [];
+                        currentIndex = -1;
+                    }
+
+                    function status() {
+                        return { count: matches.length, current: currentIndex >= 0 ? currentIndex + 1 : 0 };
+                    }
+
+                    function applyCurrent(scroll) {
+                        for (var i = 0; i < matches.length; i++) {
+                            if (i === currentIndex) matches[i].classList.add('me-find-current');
+                            else matches[i].classList.remove('me-find-current');
+                        }
+                        if (scroll && currentIndex >= 0 && matches[currentIndex]) {
+                            matches[currentIndex].scrollIntoView({ block: 'center', behavior: 'smooth' });
+                        }
+                    }
+
+                    function find(query, caseSensitive) {
+                        clearHighlights();
+                        if (!query) return status();
+
+                        var root = document.querySelector('.markdown-body') || document.body;
+                        var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+                            acceptNode: function(node) {
+                                if (!node.nodeValue || node.nodeValue.length === 0) return NodeFilter.FILTER_REJECT;
+                                var p = node.parentNode;
+                                while (p && p !== root) {
+                                    var tag = p.nodeName;
+                                    if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'MARK' || tag === 'TEXTAREA') return NodeFilter.FILTER_REJECT;
+                                    p = p.parentNode;
+                                }
+                                return NodeFilter.FILTER_ACCEPT;
+                            }
+                        });
+
+                        var textNodes = [];
+                        var node;
+                        while (node = walker.nextNode()) textNodes.push(node);
+
+                        var qlen = query.length;
+                        var needle = caseSensitive ? query : query.toLowerCase();
+
+                        for (var t = 0; t < textNodes.length; t++) {
+                            var textNode = textNodes[t];
+                            var text = textNode.nodeValue;
+                            var hay = caseSensitive ? text : text.toLowerCase();
+                            var idx = hay.indexOf(needle);
+                            if (idx === -1) continue;
+
+                            var frag = document.createDocumentFragment();
+                            var last = 0;
+                            while (idx !== -1) {
+                                if (idx > last) frag.appendChild(document.createTextNode(text.substring(last, idx)));
+                                var mark = document.createElement('mark');
+                                mark.className = 'me-find';
+                                mark.appendChild(document.createTextNode(text.substring(idx, idx + qlen)));
+                                frag.appendChild(mark);
+                                last = idx + qlen;
+                                idx = hay.indexOf(needle, last);
+                            }
+                            if (last < text.length) frag.appendChild(document.createTextNode(text.substring(last)));
+                            if (textNode.parentNode) textNode.parentNode.replaceChild(frag, textNode);
+                        }
+
+                        matches = Array.prototype.slice.call(document.querySelectorAll('mark.me-find'));
+                        currentIndex = matches.length ? 0 : -1;
+                        applyCurrent(true);
+                        return status();
+                    }
+
+                    function goto(index) {
+                        if (!matches.length) return status();
+                        var n = matches.length;
+                        currentIndex = ((index % n) + n) % n;
+                        applyCurrent(true);
+                        return status();
+                    }
+
+                    window.meFind = {
+                        find: find,
+                        clear: clearHighlights,
+                        next: function() { return goto(currentIndex + 1); },
+                        prev: function() { return goto(currentIndex - 1); },
+                        current: status
+                    };
+                })();
             </script>
         </body>
         </html>
@@ -246,6 +371,7 @@ struct PreviewView: NSViewRepresentable {
     class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
         var parent: PreviewView
         var scrollSyncManager: ScrollSyncManager?
+        var findReplaceManager: FindReplaceManager?
         var lastHtmlKey: String = ""
 
         init(_ parent: PreviewView) {
@@ -306,6 +432,13 @@ struct PreviewView: NSViewRepresentable {
 
         // 페이지 로드 완료 후 에디터 커서 위치에 맞춰 프리뷰 동기화
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            // 프리뷰 검색이 활성화되어 있으면 재로드 후 하이라이트 재적용 (렌더링 완료 대기)
+            if let findManager = findReplaceManager, findManager.isVisible {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    findManager.reapplyPreviewSearchIfNeeded()
+                }
+            }
+
             guard let syncManager = scrollSyncManager, syncManager.isEnabled else { return }
 
             // 에디터의 현재 커서 라인 기준으로 프리뷰 동기화 (더 정확한 위치)
@@ -331,6 +464,9 @@ struct PreviewView: NSViewRepresentable {
             } else if message.name == "linkHandler",
                       let href = message.body as? String {
                 handleLinkClick(href, in: message.webView)
+            } else if message.name == "focusHandler" {
+                // 프리뷰에서 사용자 상호작용 발생 → 검색 대상 자동 선택용
+                findReplaceManager?.markPreviewActive()
             }
         }
 

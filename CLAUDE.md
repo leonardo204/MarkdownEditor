@@ -39,17 +39,28 @@
 - Quick Look Extension (Premium): Finder에서 마크다운 풀 미리보기
 - StoreKit 2 인앱 구입 (비소모품)
 
-### 상세 문서
+### 문서 구조 (소유권 분리)
+
+- **하니스 문서** (`docs/claude/` 하위) — 🔒 dotclaude 소유. `dotclaude-update`가 덮어쓰니 **수정 금지**.
+- **프로젝트 스펙** (`docs/specs/` 하위) — 📝 자유롭게 작성. → [SDD 가이드라인](docs/claude/sdd.md) · `/spec-guard`로 정합성 분석
+
+### 프로젝트 문서
 
 - [아키텍처](docs/architecture.md) — 프로젝트 구조, 핵심 아키텍처, 스크롤 동기화
 - [앱스토어 체크리스트](docs/appstore-checklist.md) — 제출 체크리스트, Validation 오류 해결
 - [변경 이력](docs/changelog.md) — 버전별 변경 이력
 - [Quick Look + IAP 검토](docs/quicklook-iap-review.md) — Quick Look + IAP 기능 검토
+
+### 하니스 상세 문서 (docs/claude/)
+
 - [Context DB](docs/claude/context-db.md) — SQLite 기반 세션/태스크/결정 저장소
 - [Context Monitor](docs/claude/context-monitor.md) — HUD + compaction 감지/복구
+- [Hooks](docs/claude/hooks.md) — 자동 실행 Hook 상세
 - [컨벤션](docs/claude/conventions.md) — 커밋, 주석, 로깅 규칙
 - [셋업](docs/claude/setup.md) — 새 환경 초기 설정
+- [Agent Delegation](docs/claude/agent-delegation.md) — 에이전트 위임/파이프라인 상세
+- [SDD 가이드라인](docs/claude/sdd.md) — 스펙 문서 작성/관리 규약
 
 ---
 
-*최종 업데이트: 2026-04-29*
+*최종 업데이트: 2026-07-13*

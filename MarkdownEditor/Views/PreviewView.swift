@@ -143,7 +143,8 @@ struct PreviewView: NSViewRepresentable {
                                 querySelector: '.mermaid'
                             });
                         } catch (e) {
-                            // Mermaid 렌더링 오류 무시
+                            // 렌더링은 계속하되, 원인은 남긴다 (Web Inspector에서 확인)
+                            console.error('[Mermaid] 렌더링 실패:', e && e.message ? e.message : e);
                         }
                     }
 

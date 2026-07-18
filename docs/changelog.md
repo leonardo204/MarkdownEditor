@@ -1,5 +1,17 @@
 # 변경 이력
 
+## v1.5.5 (Build 25)
+- fix: Mermaid 라벨의 마크다운 오파싱 수정
+  - `"1. 항목"`처럼 블록 마커로 시작하는 라벨이 `Unsupported markdown: list`로 그려지던 문제
+  - mermaid 11이 노드·엣지 라벨을 마크다운으로 파싱하는 것이 원인
+  - 라벨 선두에 폭 없는 공백(U+200B)을 넣어 블록 판정만 무력화 (표시 문자는 불변)
+  - 순서 있는 목록(`1.`/`1)`), 불릿(`-`/`*`/`+`), 제목(`#`), 인용(`>`) 모두 대응
+- fix: Mermaid 코드블록 HTML 이스케이프 추가
+  - `</div>`·`a <b 5` 같은 텍스트가 HTML 파서에 먼저 먹혀 다이어그램 전체가 Parse error로 죽던 문제
+  - `&`·`<`·`>`만 이스케이프 — mermaid가 innerHTML을 entityDecode 하므로 원문 그대로 복원, `<br>` 줄바꿈 영향 없음
+- fix: Mermaid 렌더링 실패를 삼키던 빈 catch에 console.error 추가
+- 본체·Quick Look 두 렌더링 파이프라인에 동일 적용
+
 ## v1.5.2 (Build 22)
 - feat: 프리뷰 on/off 토글 기능 추가
   - Editor 헤더에 Preview 토글 스위치 (SF Symbol + 텍스트)

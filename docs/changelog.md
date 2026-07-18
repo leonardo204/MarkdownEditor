@@ -46,6 +46,38 @@
   - 프리미엄 + Preview OFF: 안내 배너 + raw 마크다운
   - 미구매: 구매 배너 + raw 마크다운
 
+## v1.5.1 (Build 21)
+- fix: App Store Guideline 2.4.5(i) 대응
+  - 메인앱/QL extension 양쪽에서 `temporary-exception.files.home-relative-path.read-only` 제거
+  - QL extension: `embedLocalImages` 대신 `replaceLocalImagesWithPlaceholder`로 전환
+  - QL extension: `startAccessingSecurityScopedResource` 추가
+
+## v1.5.1 (Build 20)
+- feat: Quick Look 및 에디터 프리뷰 이미지 렌더링 지원
+  - MarkdownImageHelper를 MarkdownCore 공유 패키지로 이동
+  - Quick Look extension에 `embedLocalImages` 적용 (base64 인라인)
+  - 앱/QL extension에 temporary-exception 읽기 권한 추가 (샌드박스 대응) — Build 21에서 철회
+
+## v1.5.0 (Build 19)
+- feat: 이미지 삽입 기능 전면 개선
+  - 이미지 파일 드래그 앤 드롭: NSSavePanel 없이 바로 상대경로/`file://` URL 삽입
+  - Ctrl+O: NSOpenPanel로 이미지 파일 선택 후 마크다운 삽입
+  - Cmd+V: 클립보드 이미지 감지 → NSSavePanel 저장
+  - 프리뷰에서 로컬 이미지를 base64 data URI로 인라인 (WKWebView 샌드박스 대응)
+  - 문서 외부 이미지는 `file://` 절대 URL, 내부 이미지는 상대경로
+  - 다중 이미지 삽입 시 인덱스가 어긋나던 regex 치환 버그 수정
+- feat: Quick Look 미리보기 윈도우 크기 기억
+  - 닫을 때 뷰 크기를 App Group UserDefaults에 저장, 다음에 열 때 복원
+  - 기본 크기 800x600으로 확대
+- ui: 이미지 크기 설정 UI 추가
+  - 설정에 이미지 렌더 모드(Optimized/Original)와 최대 너비 슬라이더 추가
+  - 메뉴에 이미지 삽입 항목 추가 (Ctrl+O)
+- fix: 새 윈도우/새 탭 동작을 macOS 표준 단축키에 맞춤
+  - Cmd+N은 독립 윈도우(탭 병합 방지), Cmd+T는 기존 윈도우에 탭 추가
+  - Dock의 "New Window"와 아이콘 클릭도 독립 윈도우로 생성
+- fix: 멀티 윈도우 충돌 방지 — Notification 액션을 keyWindow 기준으로 스코핑
+- fix: StoreKit IAP 상품 로드 실패 시 자동 재시도 (최대 5회, 10s→20s→30s) 및 로딩/에러 상태 UI 표시
+
 ## v1.4.0 (Build 18)
 - feat: Quick Look Preview Extension 추가 (Premium)
   - Finder에서 마크다운 파일 스페이스바로 풀 렌더링 미리보기

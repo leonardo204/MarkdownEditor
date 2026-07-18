@@ -70,7 +70,7 @@ private struct HTMLVisitor: MarkupVisitor {
 
         // Mermaid 다이어그램
         if language == "mermaid" {
-            return "<div class=\"mermaid\">\(code)</div>"
+            return "<div class=\"mermaid\">\(prepareMermaidSource(code))</div>"
         }
 
         // PlantUML 다이어그램
@@ -270,6 +270,83 @@ private struct HTMLVisitor: MarkupVisitor {
             .replacingOccurrences(of: ">", with: "&gt;")
             .replacingOccurrences(of: "\"", with: "&quot;")
             .replacingOccurrences(of: "'", with: "&#39;")
+    }
+
+    /// Mermaid 코드블록을 브라우저에 넘기기 전에 두 가지를 손본다.
+    private func prepareMermaidSource(_ code: String) -> String {
+        escapeMermaidHTML(escapeMermaidBlockMarkers(code))
+    }
+
+    /// Mermaid 11은 노드·엣지 라벨을 마크다운으로 파싱한다. 그래서 `"1. 항목"`처럼
+    /// 블록 마커로 시작하는 라벨은 list·heading·blockquote 토큰이 되고,
+    /// 다이어그램 대신 `Unsupported markdown: list` 문구가 그려진다.
+    ///
+    /// 마커 앞에 폭 없는 공백(U+200B)을 끼우면 블록 정규식이 모두 `^` 앵커라
+    /// 한 글자로 전부 어긋난다. 보이는 글자는 하나도 바뀌지 않는다.
+    /// (엔티티 `#46;`로 구분자를 바꾸는 방법은 라벨에 `<br>`이 있으면 통하지 않는다.)
+    private func escapeMermaidBlockMarkers(_ code: String) -> String {
+        var result = ""
+        var label = ""
+        var inQuotes = false
+
+        for character in code {
+            if character == "\"" {
+                if inQuotes {
+                    result += neutralizingBlockMarker(in: label)
+                    label = ""
+                }
+                result.append(character)
+                inQuotes.toggle()
+            } else if inQuotes {
+                label.append(character)
+            } else {
+                result.append(character)
+            }
+        }
+
+        // 따옴표 짝이 맞지 않으면 손대지 않고 원문을 흘려보낸다
+        return inQuotes ? result + label : result
+    }
+
+    private func neutralizingBlockMarker(in label: String) -> String {
+        let zeroWidthSpace = "\u{200B}"
+        let indent = label.prefix(3).prefix { $0 == " " }
+        let body = label.dropFirst(indent.count)
+        guard let marker = body.first else { return label }
+
+        // 인용만은 뒤에 공백이 없어도 블록으로 인식된다
+        if marker == ">" { return zeroWidthSpace + label }
+
+        // 나머지 마커는 뒤에 공백이 와야 블록이 된다 (`*강조*`는 그대로 둔다)
+        func startsBlock(_ rest: Substring) -> Bool {
+            guard let next = rest.first else { return true }
+            return next == " " || next == "\t"
+        }
+
+        // 순서 있는 목록: `1. 항목` / `1) 항목`
+        if marker.isASCII, marker.isNumber {
+            let digits = body.prefix { $0.isASCII && $0.isNumber }
+            let afterDigits = body.dropFirst(digits.count)
+            guard digits.count <= 9,
+                  let delimiter = afterDigits.first,
+                  delimiter == "." || delimiter == ")",
+                  startsBlock(afterDigits.dropFirst()) else { return label }
+            return zeroWidthSpace + label
+        }
+
+        // 순서 없는 목록과 제목
+        guard "-*+#".contains(marker), startsBlock(body.dropFirst()) else { return label }
+        return zeroWidthSpace + label
+    }
+
+    /// mermaid는 `.mermaid` 요소의 innerHTML을 읽어 entityDecode 한 뒤 파싱한다.
+    /// 그래서 `&`·`<`·`>`를 막아두면 원문이 그대로 복원되면서도, `</div>`나 `a <b 5`
+    /// 같은 텍스트가 HTML 파서에 먼저 먹혀 다이어그램 전체가 죽는 것을 막을 수 있다.
+    /// `<br>` 줄바꿈은 entityDecode를 거쳐 복원되므로 그대로 동작한다.
+    private func escapeMermaidHTML(_ code: String) -> String {
+        code.replacingOccurrences(of: "&", with: "&amp;")
+            .replacingOccurrences(of: "<", with: "&lt;")
+            .replacingOccurrences(of: ">", with: "&gt;")
     }
 
     private func generateHeadingId(from text: String) -> String {

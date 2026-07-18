@@ -91,3 +91,6 @@ sample-video.mov
 .claude/.cost_state
 .claude/db/context.db-shm
 .claude/db/context.db-wal
+
+# App Store 프로모션 코드 (절대 커밋 금지)
+OfferCodeOneTimeUseCodes*.csv

@@ -12,6 +12,24 @@
 - fix: Mermaid 렌더링 실패를 삼키던 빈 catch에 console.error 추가
 - 본체·Quick Look 두 렌더링 파이프라인에 동일 적용
 
+## v1.5.4 (Build 24)
+- feat: 뷰어(프리뷰) 검색 지원
+  - 커서/포커스 위치에 따라 에디터(소스) 또는 프리뷰(렌더 결과)에서 검색
+  - 프리뷰 검색은 JS 기반 하이라이트 (전체 노랑 + 현재 주황), 카운터, 다음/이전, 대소문자 구분
+  - 검색 바에 에디터/미리보기 대상 토글 추가, 프리뷰 검색 시 바꾸기 UI 숨김
+  - 편집으로 프리뷰가 재로드돼도 검색 하이라이트 자동 재적용
+- feat: 검색 UX 개선
+  - TextField를 네이티브 NSSearchField로 교체 — 최근 검색 히스토리 + 초기화 메뉴 내장
+  - 재오픈 시 검색어 유지 + 전체 선택, Enter/닫기 시 최근 검색 기록
+
+## v1.5.3 (Build 23)
+- feat: 로컬 이미지 렌더링 (App Sandbox 대응)
+  - DirectoryBookmarkManager 추가 — security-scoped bookmark 저장/복원으로 디렉토리 접근 관리
+  - 상위 디렉토리 북마크 자동 탐색
+  - base64 임베딩 실패 시 `file://` URL 폴백
+- feat: 프리뷰 링크 내비게이션 — 상대경로 `.md` 링크 클릭 시 앱 내에서 열기
+- feat: 스마트 이미지 크기 조정 — optimized 모드에서 원본 너비가 max-width의 2배를 초과하면 자동 전체 너비 표시
+
 ## v1.5.2 (Build 22)
 - feat: 프리뷰 on/off 토글 기능 추가
   - Editor 헤더에 Preview 토글 스위치 (SF Symbol + 텍스트)

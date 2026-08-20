@@ -950,6 +950,11 @@ class DocumentManager: ObservableObject {
     }
 
     func loadFile(from url: URL) {
+        // 저장된 북마크로 문서 디렉토리 보안 스코프를 개시한다.
+        // application(_:open:) 외에 드롭 / Open 패널 / 최근 파일 경로도 이 함수를 타므로
+        // 여기서 개시해야 프리뷰가 이미지 파일을 읽을 수 있다.
+        DirectoryBookmarkManager.shared.startAccessing(directoryOf: url)
+
         do {
             let fileContent = try String(contentsOf: url, encoding: .utf8)
             content = fileContent

@@ -27,7 +27,9 @@ struct DocumentContentView: View {
     @State private var showOutline: Bool = false
 
     // 현재 커서 라인 (아웃라인 하이라이트용)
-    @State private var currentLine: Int = 0
+    // @State로 "보관"만 한다 — @StateObject로 두면 이 뷰가 구독하게 되어
+    // 커서 라인이 바뀔 때마다 에디터·프리뷰까지 전체 body가 재평가된다.
+    @State private var outlineState = OutlineState()
 
     // 포커스 모드 표시 여부
     @State private var focusMode: Bool = false
@@ -59,24 +61,26 @@ struct DocumentContentView: View {
             },
             findReplaceManager: findReplaceManager,
             onCursorLineChange: { line in
-                DebugLogger.shared.log("[Outline] onCursorLineChange: \(line), previous currentLine: \(currentLine)")
-                currentLine = line
+                // 아웃라인이 닫혀 있으면 갱신 자체를 스킵 (구독자가 없으므로 순수 낭비)
+                guard showOutline else { return }
+                guard outlineState.currentLine != line else { return }
+                outlineState.currentLine = line
             },
             showOutline: showOutline,
-            currentLine: currentLine,
+            outlineState: outlineState,
             onSelectHeading: { lineNumber, headingIndex in
-                DebugLogger.shared.log("[Outline] === HEADING CLICKED === line:\(lineNumber), index:\(headingIndex), target:\(appState.outlineScrollTarget), currentLine(before):\(currentLine)")
+                DebugLogger.shared.log("[Outline] === HEADING CLICKED === line:\(lineNumber), index:\(headingIndex), target:\(appState.outlineScrollTarget), currentLine(before):\(outlineState.currentLine)")
                 // 아웃라인 클릭 타임스탬프 기록 (프리뷰 smooth scroll 동안 스크롤 기반 덮어쓰기 방지)
                 scrollSyncManager.lastOutlineClickTime = CACurrentMediaTime()
                 moveCursorToLine(lineNumber)
-                DebugLogger.shared.log("[Outline] after moveCursorToLine, currentLine:\(currentLine)")
+                DebugLogger.shared.log("[Outline] after moveCursorToLine, currentLine:\(outlineState.currentLine)")
                 switch appState.outlineScrollTarget {
                 case .editor:
                     scrollEditorToLine(lineNumber)
                 case .preview:
                     scrollPreviewToHeading(headingIndex)
                 }
-                DebugLogger.shared.log("[Outline] after scroll, currentLine:\(currentLine)")
+                DebugLogger.shared.log("[Outline] after scroll, currentLine:\(outlineState.currentLine)")
             },
             focusMode: focusMode,
             typewriterMode: typewriterMode,
@@ -97,6 +101,12 @@ struct DocumentContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ToggleOutline"))) { n in
             guard isMyWindow(n) else { return }
             showOutline.toggle()
+        }
+        .onChange(of: showOutline) { visible in
+            // 아웃라인이 닫혀 있는 동안에는 currentLine 갱신을 스킵하므로 값이 낡아 있다.
+            // 열리는 순간 현재 커서 위치로 시딩해 하이라이트가 즉시 맞게 표시되도록 한다.
+            guard visible else { return }
+            seedOutlineCurrentLine()
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ToggleFocusMode"))) { n in
             guard isMyWindow(n) else { return }
@@ -151,6 +161,20 @@ struct DocumentContentView: View {
         return senderWindow === myWindow
     }
 
+    // MARK: - 아웃라인 하이라이트 시딩
+
+    /// 아웃라인이 열릴 때 현재 커서 라인을 outlineState에 반영한다.
+    /// (닫혀 있는 동안 갱신을 스킵하므로 열리는 시점에 한 번 맞춰준다)
+    private func seedOutlineCurrentLine() {
+        guard let textView = actionHandler.textView else { return }
+        let nsText = textView.string as NSString
+        let location = min(textView.selectedRange().location, nsText.length)
+        let line = nsText.substring(to: location).components(separatedBy: "\n").count - 1
+        if outlineState.currentLine != line {
+            outlineState.currentLine = line
+        }
+    }
+
     // MARK: - 프리뷰 업데이트
 
     private func updatePreview() {
@@ -158,12 +182,13 @@ struct DocumentContentView: View {
         guard appState.showPreviewPane else { return }
 
         var html = markdownProcessor.convertToHTML(documentManager.content)
-        // 로컬 이미지를 base64 data URI로 인라인 (WKWebView 샌드박스 대응)
+        // 로컬 이미지를 me-asset:// 스킴으로 재작성 — LocalImageSchemeHandler가 온디맨드 서빙
         if let docURL = documentManager.currentFileURL {
-            html = MarkdownImageHelper.embedLocalImages(in: html, documentURL: docURL)
+            let rewritten = MarkdownImageHelper.rewriteLocalImages(in: html, documentURL: docURL)
+            html = rewritten.html
 
-            // 이미지 임베딩 실패 확인 (file:// URL이 남아있으면 sandbox 차단)
-            if html.contains("src=\"file://") && !hasRequestedDirectoryAccess {
+            // 해석 실패한 이미지가 있으면 sandbox 차단일 수 있으므로 디렉토리 접근 권한 요청
+            if rewritten.unresolvedCount > 0 && !hasRequestedDirectoryAccess {
                 hasRequestedDirectoryAccess = true
                 DirectoryBookmarkManager.shared.requestAccess(forDirectoryOf: docURL) { granted in
                     if granted {
@@ -219,6 +244,9 @@ struct DocumentContentView: View {
         let location = min(charIndex, nsText.length)
         let range = NSRange(location: location, length: 0)
 
+        // 절대 좌표로 스크롤하기 전에 선행 구간 레이아웃을 확정한다.
+        // (연속 레이아웃에서는 대개 이미 확정돼 즉시 반환되는 방어적 호출)
+        layoutManager.ensureLayout(forCharacterRange: NSRange(location: 0, length: location))
         let glyphRange = layoutManager.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
         let lineRect = layoutManager.boundingRect(forGlyphRange: glyphRange, in: textContainer)
         let targetY = lineRect.origin.y + textView.textContainerInset.height

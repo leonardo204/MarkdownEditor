@@ -2,17 +2,18 @@ import SwiftUI
 import WebKit
 import UniformTypeIdentifiers
 
+// MARK: - 아웃라인 상태
+// 커서 라인은 스크롤/커서 이동마다 갱신되므로 @State로 두면 에디터·프리뷰를 포함한
+// 전체 body가 매 틱 재평가된다. 아웃라인 사이드바만 구독하도록 별도 객체로 분리한다.
+// (소유자인 DocumentContentView는 @State로 "보관만" 하고 구독하지 않는다)
+class OutlineState: ObservableObject {
+    @Published var currentLine: Int = 0
+}
+
 // MARK: - 스크롤 동기화 관리자
 // 에디터와 프리뷰 간 스크롤 동기화 관리 (퍼센트 기반, 단순화)
 class ScrollSyncManager: ObservableObject {
-    enum ScrollSource {
-        case none
-        case editor
-        case preview
-    }
-
     @Published var isEnabled: Bool = true
-    private var currentSource: ScrollSource = .none
     private var lastSyncTime: CFTimeInterval = 0
 
     // 아웃라인 클릭 시 설정 — 프리뷰 smooth scroll 동안 에디터 스크롤 기반 라인 업데이트 억제
@@ -22,53 +23,95 @@ class ScrollSyncManager: ObservableObject {
     weak var editorScrollView: NSScrollView?
     weak var previewWebView: WKWebView?
 
-    // 소스 리셋 타이머
-    private var resetTimer: Timer?
+    // MARK: - 에코 차단
+    //
+    // 프리뷰 방향: 에코 판별은 JS 쪽 "사용자 입력 게이트"가 담당한다.
+    // 프로그램적 scrollTo와 리플로우는 사용자 입력을 동반하지 않으므로 메시지 자체가 오지 않는다.
+    // (카운터 토큰 방식은 rAF 이벤트 병합과 궁합이 나빠 에코가 사용자 스크롤로 오인됐다 — 제거함)
+    //
+    // 에디터 방향: 프로그램적 스크롤 "구간"을 플래그로 덮어 그 사이의 알림을 전부 무시한다.
+    //
+    // 건수를 세지 않는 이유: clipView.setBoundsOrigin() 1회가 내부적으로 boundsDidChange를
+    // 2건 post한다(가시 창의 copy-on-scroll 경로 — 알림#1은 NSView setBoundsOrigin,
+    // 알림#2는 _selfBoundsChanged → translateOriginToPoint:). 건수는 창 가시성과 AppKit
+    // 버전에 따라 달라지므로, 1건만 소비하는 래치는 나머지를 통과시켜 에코가 샌다.
+    // 알림이 setBoundsOrigin 내부에서 동기 발생하므로 다음 런루프 턴에 해제하면 구간이 정확히 덮인다.
+    private var isProgrammaticEditorScroll = false
+
+    // 프리뷰 로드 직후 잡음 억제 기한
+    private var loadSettleUntil: CFTimeInterval = 0
+
+    // 최근 에디터 사용자 스크롤 시각 — 양방향 동시 동기화를 막기 위해 최근 조작 주체를 우선한다
+    private var lastEditorUserScrollTime: CFTimeInterval = 0
 
     // MARK: - 에디터 스크롤 시 프리뷰 동기화
 
+    /// 프로그램적 에디터 스크롤 구간인지 (스크롤 핸들러의 무거운 작업을 건너뛰는 판단에 사용)
+    var isProgrammaticScrollActive: Bool { isProgrammaticEditorScroll }
+
     func editorDidScroll() {
-        guard isEnabled, currentSource != .preview else { return }
+        guard isEnabled else { return }
+
+        // 우리가 syncEditorToPreview에서 만든 스크롤 구간이면 전부 무시
+        if isProgrammaticEditorScroll { return }
+
+        // 여기까지 왔으면 에코가 아닌 실제 에디터 스크롤 → 조작 주체를 에디터로 기록
+        let now = CACurrentMediaTime()
+        lastEditorUserScrollTime = now
 
         // 쓰로틀링
-        let now = CACurrentMediaTime()
         guard now - lastSyncTime >= 0.016 else { return }
         lastSyncTime = now
 
-        currentSource = .editor
         syncPreviewToEditor()
-        scheduleSourceReset()
     }
 
     // MARK: - 프리뷰 스크롤 시 에디터 동기화
 
     func previewDidScroll(scrollPercent: Double) {
-        guard isEnabled, currentSource != .editor else { return }
+        guard isEnabled else { return }
 
-        currentSource = .preview
+        let now = CACurrentMediaTime()
+
+        // 로드 정착 창: 크기를 모르는 리소스(원격 이미지 등)가 뒤늦게 로드되며 일으키는
+        // 초기 리플로우를 사용자 스크롤로 오인하지 않도록 억제한다.
+        if now < loadSettleUntil { return }
+
+        // 방향 우선순위: 사용자가 에디터를 스크롤하는 중이면 프리뷰가 에디터를 되돌리지 못하게 한다.
+        // 양방향 동시 동기화는 항상 위험하므로 최근 조작 주체를 우선한다.
+        if now - lastEditorUserScrollTime < 0.5 { return }
+
         syncEditorToPreview(scrollPercent: scrollPercent)
-        scheduleSourceReset()
+    }
+
+    /// 프리뷰 페이지 로드 완료 시점에 호출 — 이후 일정 시간 프리뷰→에디터 동기화를 억제한다.
+    func beginLoadSettling(duration: TimeInterval = 0.4) {
+        loadSettleUntil = CACurrentMediaTime() + duration
     }
 
     // MARK: - 동기화 로직 (단순 퍼센트 기반)
 
-    deinit {
-        resetTimer?.invalidate()
-    }
-
-    private func syncPreviewToEditor() {
-        guard let _ = editorScrollView,
-              let webView = previewWebView else { return }
-
-        let percent = getEditorScrollPercent()
-
+    /// 프리뷰를 지정 퍼센트로 프로그램적 스크롤한다.
+    /// 되돌아오는 scroll 이벤트는 사용자 입력이 없으므로 JS 게이트가 걸러낸다.
+    func scrollPreviewToPercent(_ percent: Double, in webView: WKWebView) {
+        let clamped = min(1.0, max(0.0, percent))
         let js = """
         (function() {
             var h = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight) - window.innerHeight;
-            if (h > 0) window.scrollTo(0, h * \(percent));
+            if (h <= 0) return;
+            var target = h * \(clamped);
+            if (Math.abs(target - window.scrollY) < 0.5) return;
+            window.scrollTo(0, target);
         })();
         """
         webView.evaluateJavaScript(js, completionHandler: nil)
+    }
+
+    private func syncPreviewToEditor() {
+        guard editorScrollView != nil,
+              let webView = previewWebView else { return }
+
+        scrollPreviewToPercent(getEditorScrollPercent(), in: webView)
     }
 
     private func syncEditorToPreview(scrollPercent: Double) {
@@ -78,9 +121,21 @@ class ScrollSyncManager: ObservableObject {
         let clipView = scrollView.contentView
         let scrollableHeight = documentView.frame.height - clipView.bounds.height
 
-        if scrollableHeight > 0 {
-            clipView.setBoundsOrigin(NSPoint(x: 0, y: scrollableHeight * CGFloat(scrollPercent)))
-        }
+        guard scrollableHeight > 0 else { return }
+
+        // 러버밴드 오버스크롤로 0..1 밖의 퍼센트가 올 수 있다 → 클램프하지 않으면
+        // 에디터가 문서 경계 밖으로 밀려난다.
+        let clamped = min(1.0, max(0.0, scrollPercent))
+        let target = scrollableHeight * CGFloat(clamped)
+
+        // 이미 목표 위치면 대입하지 않는다 (불필요한 알림·레이아웃 유발 방지)
+        guard abs(clipView.bounds.origin.y - target) >= 1.0 else { return }
+
+        // 대입이 동기 발생시키는 boundsDidChange를 전부 덮도록 구간을 연다.
+        // 해제는 다음 런루프 턴 — 그 시점엔 알림이 모두 처리된 뒤다.
+        isProgrammaticEditorScroll = true
+        clipView.setBoundsOrigin(NSPoint(x: 0, y: target))
+        DispatchQueue.main.async { self.isProgrammaticEditorScroll = false }
     }
 
     // 에디터 스크롤 퍼센트 계산 (스크롤 위치 기반)
@@ -101,10 +156,13 @@ class ScrollSyncManager: ObservableObject {
               let textView = scrollView.documentView as? NSTextView else { return 0 }
 
         let text = textView.string
-        let cursorPosition = textView.selectedRange().location
+        let nsText = text as NSString
+        // selectedRange는 UTF-16 오프셋이므로 상한도 UTF-16 길이를 써야 한다.
+        // text.count(Character 수)와 혼용하면 한글 등 멀티바이트 문서에서 엉뚱한 위치를 자른다.
+        let cursorPosition = min(textView.selectedRange().location, nsText.length)
 
         // 커서 위치까지의 라인 수 계산
-        let textUpToCursor = (text as NSString).substring(to: min(cursorPosition, text.count))
+        let textUpToCursor = nsText.substring(to: cursorPosition)
         let currentLine = textUpToCursor.components(separatedBy: "\n").count
 
         // 전체 라인 수
@@ -114,12 +172,6 @@ class ScrollSyncManager: ObservableObject {
         return min(1.0, Double(currentLine - 1) / Double(totalLines - 1))
     }
 
-    private func scheduleSourceReset() {
-        resetTimer?.invalidate()
-        resetTimer = Timer.scheduledTimer(withTimeInterval: 0.15, repeats: false) { [weak self] _ in
-            self?.currentSource = .none
-        }
-    }
 }
 
 // MARK: - 프리뷰 업데이트 디바운서
@@ -161,7 +213,8 @@ struct EditorPreviewSplitView: View {
     var findReplaceManager: FindReplaceManager?
     var onCursorLineChange: ((Int) -> Void)?
     var showOutline: Bool = false
-    var currentLine: Int = 0
+    // 구독하지 않고 전달만 한다 (@ObservedObject로 받으면 캐스케이드가 되살아난다)
+    let outlineState: OutlineState
     var onSelectHeading: ((Int, Int) -> Void)?
     var focusMode: Bool = false
     var typewriterMode: Bool = false
@@ -174,7 +227,7 @@ struct EditorPreviewSplitView: View {
             if showOutline {
                 OutlineView(
                     content: documentManager.content,
-                    currentLine: currentLine,
+                    outlineState: outlineState,
                     onSelectHeading: onSelectHeading,
                     scrollTarget: $appState.outlineScrollTarget
                 )
@@ -405,14 +458,18 @@ struct OutlineItem: Identifiable {
 // MARK: - 아웃라인 뷰
 struct OutlineView: View {
     let content: String
-    var currentLine: Int = 0  // 에디터 커서의 현재 라인 (0-based)
+    // 커서 라인 변경을 실제로 구독하는 유일한 뷰
+    @ObservedObject var outlineState: OutlineState
     var onSelectHeading: ((Int, Int) -> Void)?  // (line number, heading index) callback
     @Binding var scrollTarget: OutlineScrollTarget
 
+    private var currentLine: Int { outlineState.currentLine }  // 에디터 커서의 현재 라인 (0-based)
+
     // 현재 커서 위치에 해당하는 헤딩 라인 (마지막 헤딩 ≤ currentLine)
-    private var activeHeadingLine: Int? {
+    // 이미 계산된 items를 받아 재스캔을 피한다.
+    private func activeHeadingLine(in items: [OutlineItem]) -> Int? {
         var activeLine: Int? = nil
-        for item in headings {
+        for item in items {
             if item.line <= currentLine {
                 activeLine = item.line
             } else {
@@ -456,7 +513,13 @@ struct OutlineView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        // headings는 computed라 참조할 때마다 문서 전체를 스캔한다.
+        // ForEach 행마다 activeHeadingLine을 통해 재평가되면 헤딩 H개일 때 전체 스캔이 H회 발생 →
+        // 진입부에서 1회만 계산해 지역 변수로 쓴다.
+        let items = headings
+        let active = activeHeadingLine(in: items)
+
+        return VStack(alignment: .leading, spacing: 0) {
             // 헤더
             HStack {
                 Text("Outline")
@@ -477,7 +540,7 @@ struct OutlineView: View {
 
             Divider()
 
-            if headings.isEmpty {
+            if items.isEmpty {
                 VStack {
                     Spacer()
                     Text("No headings")
@@ -489,10 +552,10 @@ struct OutlineView: View {
             } else {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 2) {
-                        ForEach(Array(headings.enumerated()), id: \.element.id) { index, item in
-                            let isActive = item.line == activeHeadingLine
+                        ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                            let isActive = item.line == active
                             Button(action: {
-                                DebugLogger.shared.log("[Outline] Button tapped: index:\(index), line:\(item.line), title:'\(item.title)', activeHeadingLine:\(String(describing: activeHeadingLine)), currentLine:\(currentLine)")
+                                DebugLogger.shared.log("[Outline] Button tapped: index:\(index), line:\(item.line), title:'\(item.title)', activeHeadingLine:\(String(describing: active)), currentLine:\(currentLine)")
                                 onSelectHeading?(item.line, index)
                             }) {
                                 HStack(spacing: 4) {
@@ -549,6 +612,7 @@ struct OutlineView: View {
         htmlContent: .constant("<p>Preview</p>"),
         onFileDrop: { _ in },
         onImageDrop: { _, _ in nil },
-        onContentChange: { _ in }
+        onContentChange: { _ in },
+        outlineState: OutlineState()
     )
 }

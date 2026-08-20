@@ -1,5 +1,6 @@
 import SwiftUI
 import WebKit
+import MarkdownCore
 
 // WKWebView를 래핑한 Markdown 미리보기 뷰
 // HTML 렌더링, Mermaid 다이어그램, 수식 지원
@@ -13,9 +14,9 @@ struct PreviewView: NSViewRepresentable {
     @AppStorage("imageMaxWidth") private var imageMaxWidth: Double = 680
     @AppStorage("imageRenderMode") private var imageRenderMode: String = "optimized"
 
-    // HTML 변경 감지를 위한 키
-    private var htmlKey: String {
-        "\(htmlContent.hashValue)_\(theme.rawValue)_\(imageRenderMode)_\(Int(imageMaxWidth))"
+    // 스타일 관련 변경 감지 키 (htmlContent는 문자열 자체를 비교 — hashValue는 매 틱 O(n))
+    private var styleKey: String {
+        "\(theme.rawValue)_\(imageRenderMode)_\(Int(imageMaxWidth))"
     }
 
     func makeNSView(context: Context) -> WKWebView {
@@ -35,6 +36,9 @@ struct PreviewView: NSViewRepresentable {
         userContentController.add(context.coordinator, name: "linkHandler")
         userContentController.add(context.coordinator, name: "focusHandler")
         configuration.userContentController = userContentController
+
+        // 로컬 이미지 온디맨드 서빙 (me-asset:// 스킴)
+        configuration.setURLSchemeHandler(LocalImageSchemeHandler(), forURLScheme: LocalImageSchemeHandler.scheme)
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = context.coordinator
@@ -65,9 +69,13 @@ struct PreviewView: NSViewRepresentable {
         // HTML이 변경된 경우에만 다시 로드
         // 편집으로 인한 업데이트 시에는 스크롤 복원하지 않음
         // (에디터 스크롤 시에만 ScrollSyncManager가 동기화 처리)
-        let currentKey = htmlKey
-        if context.coordinator.lastHtmlKey != currentKey {
-            context.coordinator.lastHtmlKey = currentKey
+        // htmlContent는 대개 동일 스토리지를 공유하므로 == 가 포인터 비교로 끝난다(O(1)).
+        // hashValue는 매 틱 전체 문자열을 훑으므로 쓰지 않는다.
+        let currentStyleKey = styleKey
+        if context.coordinator.lastStyleKey != currentStyleKey
+            || context.coordinator.lastHtmlContent != htmlContent {
+            context.coordinator.lastStyleKey = currentStyleKey
+            context.coordinator.lastHtmlContent = htmlContent
 
             let fullHTML = wrapHTML(content: htmlContent, theme: theme)
 
@@ -80,9 +88,44 @@ struct PreviewView: NSViewRepresentable {
         Coordinator(self)
     }
 
+    /// 번들에 존재가 확인된 리소스만 me-asset://bundle/로 서빙하고, 없으면 CDN을 유지한다.
+    private func resourceURL(bundled name: String, cdn: String) -> String {
+        BundledWebResources.isAvailable(name) ? "me-asset://bundle/\(name)" : cdn
+    }
+
     private func wrapHTML(content: String, theme: PreviewTheme) -> String {
         let themeClass = theme == .dark ? "dark" : "light"
         let mermaidTheme = theme.mermaidTheme
+
+        // CDN 콜드 로드가 초기 렌더 시간의 대부분을 차지하므로 번들 리소스로 대체한다.
+        let hlThemeName = theme == .dark ? "atom-one-dark.min.css" : "atom-one-light.min.css"
+        let hlThemeURL = resourceURL(
+            bundled: hlThemeName,
+            cdn: "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/\(hlThemeName)"
+        )
+        let hlJSURL = resourceURL(
+            bundled: "highlight.min.js",
+            cdn: "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"
+        )
+        let katexJSURL = resourceURL(
+            bundled: "katex.min.js",
+            cdn: "https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"
+        )
+        let autoRenderJSURL = resourceURL(
+            bundled: "auto-render.min.js",
+            cdn: "https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        )
+        let mermaidJSURL = resourceURL(
+            bundled: "mermaid.min.js",
+            cdn: "https://cdn.jsdelivr.net/npm/mermaid@11.3/dist/mermaid.min.js"
+        )
+        let pakoJSURL = resourceURL(
+            bundled: "pako.min.js",
+            cdn: "https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"
+        )
+        // KaTeX CSS는 상대경로 url(fonts/...)로 폰트를 참조하는데 번들에 폰트가 없다.
+        // 번들에서 로드하면 폰트 요청이 me-asset://bundle/fonts/...로 와서 전부 실패하므로 CDN을 유지한다.
+        let katexCSSURL = "https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
 
         return """
         <!DOCTYPE html>
@@ -90,28 +133,32 @@ struct PreviewView: NSViewRepresentable {
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' data: blob: https: http:; img-src 'self' data: blob: https: http:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; style-src 'self' 'unsafe-inline' https:;">
+            <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' data: blob: me-asset: https: http:; img-src 'self' data: blob: me-asset: https: http:; script-src 'self' 'unsafe-inline' 'unsafe-eval' me-asset: https:; style-src 'self' 'unsafe-inline' me-asset: https:; frame-src https: http:; object-src 'none';">
             <style>
                 \(getCSS(for: theme))
                 \(imageRenderMode == "optimized" ? "img { max-width: \(Int(imageMaxWidth))px !important; } img.img-wide { max-width: 100% !important; width: 100% !important; }" : "img { max-width: 100% !important; }")
+                /* width/height 속성으로 레이아웃 높이를 예약하되, max-width로 축소될 때
+                   종횡비가 깨지지 않도록 높이를 자동 계산시킨다.
+                   속성이 주입된 이미지에만 적용해 사용자가 raw HTML로 지정한 height는 존중한다. */
+                img[width][height] { height: auto !important; }
                 /* 찾기 하이라이트 */
                 mark.me-find { background-color: rgba(255, 235, 59, 0.5); color: inherit; border-radius: 2px; padding: 0; }
                 mark.me-find.me-find-current { background-color: rgba(255, 145, 0, 0.95); color: #000; }
             </style>
             <!-- Highlight.js for code highlighting -->
-            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/\(theme == .dark ? "atom-one-dark" : "atom-one-light").min.css">
-            <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+            <link rel="stylesheet" href="\(hlThemeURL)">
+            <script defer src="\(hlJSURL)"></script>
 
-            <!-- KaTeX for math -->
-            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
-            <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
-            <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+            <!-- KaTeX for math (CSS는 폰트 의존으로 CDN 유지 + 렌더 블로킹 제거) -->
+            <link rel="stylesheet" href="\(katexCSSURL)" media="print" onload="this.media='all'">
+            <script defer src="\(katexJSURL)"></script>
+            <script defer src="\(autoRenderJSURL)"></script>
 
             <!-- Mermaid for diagrams (v11.3+ supports markdown strings for line breaks) -->
-            <script src="https://cdn.jsdelivr.net/npm/mermaid@11.3/dist/mermaid.min.js"></script>
+            <script defer src="\(mermaidJSURL)"></script>
 
             <!-- Pako for PlantUML compression -->
-            <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
+            <script defer src="\(pakoJSURL)"></script>
         </head>
         <body class="\(themeClass)">
             <div class="markdown-body">
@@ -219,6 +266,15 @@ struct PreviewView: NSViewRepresentable {
                     }
                 });
 
+                // 프리뷰의 실제 사용자 입력 시각을 추적한다.
+                // 프로그램적 scrollTo와 이미지 리플로우는 사용자 입력을 동반하지 않으므로
+                // 이 시각을 기준으로 걸러내면 rAF 이벤트 병합과 무관하게 정확히 구분된다.
+                var meLastUserInput = 0;
+                ['wheel','mousedown','touchstart','touchmove','keydown'].forEach(function(t){
+                    window.addEventListener(t, function(){ meLastUserInput = Date.now(); },
+                                            { passive: true, capture: true });
+                });
+
                 // 스크롤 동기화를 위한 스크롤 이벤트 핸들러
                 let scrollPending = false;
                 let lastScrollPercent = -1;
@@ -226,6 +282,11 @@ struct PreviewView: NSViewRepresentable {
                     if (scrollPending) return;
                     scrollPending = true;
                     requestAnimationFrame(function() {
+                        // 사용자 입력 없이 발생한 스크롤 = 프로그램적 스크롤 또는 리플로우
+                        // → 에디터를 건드리지 않는다.
+                        // (휠을 굴리는 동안 입력 시각이 계속 갱신되므로 관성 구간도 정상 동기화된다)
+                        if (Date.now() - meLastUserInput > 700) { scrollPending = false; return; }
+
                         var height = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
                         var scrollableHeight = height - window.innerHeight;
                         if (scrollableHeight > 0) {
@@ -373,7 +434,8 @@ struct PreviewView: NSViewRepresentable {
         var parent: PreviewView
         var scrollSyncManager: ScrollSyncManager?
         var findReplaceManager: FindReplaceManager?
-        var lastHtmlKey: String = ""
+        var lastStyleKey: String = ""
+        var lastHtmlContent: String? = nil
 
         init(_ parent: PreviewView) {
             self.parent = parent
@@ -442,26 +504,35 @@ struct PreviewView: NSViewRepresentable {
 
             guard let syncManager = scrollSyncManager, syncManager.isEnabled else { return }
 
+            // 로드 직후 리소스 리플로우가 사용자 스크롤로 오인되지 않도록 정착 창을 연다
+            syncManager.beginLoadSettling()
+
             // 에디터의 현재 커서 라인 기준으로 프리뷰 동기화 (더 정확한 위치)
             let percent = syncManager.getEditorCursorLinePercent()
 
             // 약간의 딜레이 후 스크롤 (렌더링 완료 대기)
+            // 반드시 syncManager를 경유해야 한다 — 직접 scrollTo하면 그 에코가 사용자 스크롤로
+            // 오인되어 파일 오픈 직후 에디터가 엉뚱한 위치로 끌려간다.
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                let js = """
-                (function() {
-                    var h = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight) - window.innerHeight;
-                    if (h > 0) window.scrollTo(0, h * \(percent));
-                })();
-                """
-                webView.evaluateJavaScript(js, completionHandler: nil)
+                syncManager.scrollPreviewToPercent(percent, in: webView)
             }
         }
 
         // JavaScript에서 스크롤/링크 이벤트 수신
         func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-            if message.name == "scrollHandler",
-               let scrollPercent = message.body as? Double {
-                scrollSyncManager?.previewDidScroll(scrollPercent: scrollPercent)
+            if message.name == "scrollHandler" {
+                // 페이로드는 Double이지만 객체 형태도 안전하게 받는다
+                let scrollPercent: Double?
+                if let value = message.body as? Double {
+                    scrollPercent = value
+                } else if let dict = message.body as? [String: Any] {
+                    scrollPercent = dict["percent"] as? Double
+                } else {
+                    scrollPercent = nil
+                }
+                if let scrollPercent {
+                    scrollSyncManager?.previewDidScroll(scrollPercent: scrollPercent)
+                }
             } else if message.name == "linkHandler",
                       let href = message.body as? String {
                 handleLinkClick(href, in: message.webView)

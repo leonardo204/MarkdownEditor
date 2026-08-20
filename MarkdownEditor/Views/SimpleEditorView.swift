@@ -98,7 +98,9 @@ struct SimpleEditorView: View {
     var typewriterMode: Bool = false
 
     @State private var lineCount: Int = 1
-    @State private var editorScrollOffset: CGFloat = 0
+    // 스크롤 오프셋은 스크롤 틱마다 갱신되므로 @State로 두면 에디터 body 전체가 매 틱 재평가된다.
+    // 라인번호 뷰만 구독하도록 별도 객체로 분리한다 (소유자는 @State로 보관만 하고 구독하지 않음).
+    @State private var scrollState = EditorScrollState()
 
     var body: some View {
         HStack(spacing: 0) {
@@ -108,7 +110,7 @@ struct SimpleEditorView: View {
                     lineCount: lineCount,
                     theme: theme,
                     fontSize: fontSize,
-                    scrollOffset: editorScrollOffset
+                    scrollState: scrollState
                 )
                 .frame(width: 44)
             }
@@ -119,7 +121,7 @@ struct SimpleEditorView: View {
                 theme: theme,
                 fontSize: fontSize,
                 lineCount: $lineCount,
-                editorScrollOffset: $editorScrollOffset,
+                scrollState: scrollState,
                 onFileDrop: onFileDrop,
                 onImageDrop: onImageDrop,
                 onImageFilesDrop: onImageFilesDrop,
@@ -149,7 +151,7 @@ struct MarkdownNSTextView: NSViewRepresentable {
     var theme: EditorTheme
     var fontSize: CGFloat
     @Binding var lineCount: Int
-    @Binding var editorScrollOffset: CGFloat
+    let scrollState: EditorScrollState
     var onFileDrop: (([URL]) -> Void)?
     var onImageDrop: ((NSImage, String) -> String?)?
     var onImageFilesDrop: (([URL]) -> Void)?
@@ -199,12 +201,21 @@ struct MarkdownNSTextView: NSViewRepresentable {
         textView.textContainer?.containerSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         textView.textContainer?.widthTracksTextView = true
 
+        // allowsNonContiguousLayout은 의도적으로 켜지 않는다 (기본값 false 유지).
+        // 366KB/8986줄 문서 실측: true로 켜면 documentView 높이가 실제 190406pt 대비
+        // 57570~62148pt(약 1/3)로 과소 추정되어 스크롤 가능 범위 자체가 잘리고,
+        // 높이가 재추정될 때마다 스크롤 원점이 순간적으로 튀며 스크롤 틱이 40 → 137개로 증폭됐다.
+        // ("에디터가 아래로 안 내려간다" 증상의 원인)
+        // 오픈 속도 이득보다 스크롤 정확성이 우선이다.
+
         // 스크롤 뷰에 텍스트 뷰 설정
         scrollView.documentView = textView
 
         // 초기 내용 및 스타일 설정
         textView.string = content
-        applyTheme(to: textView)
+        context.coordinator.markContentSynced(content)
+        context.coordinator.beginFullLayoutPrecompute(for: textView)
+        applyTheme(to: textView, coordinator: context.coordinator)
 
         // 액션 핸들러 연결
         actionHandler?.textView = textView
@@ -236,19 +247,42 @@ struct MarkdownNSTextView: NSViewRepresentable {
         guard let textView = scrollView.documentView as? EditorTextView else { return }
 
         // 텍스트 뷰 크기 조정
+        // 값이 같아도 대입하면 레이아웃이 무효화되고 boundsDidChange가 재발화해
+        // 스크롤 틱이 2배로 늘어난다 → 반드시 달라진 경우에만 대입한다.
         let contentSize = scrollView.contentSize
-        textView.frame.size.width = contentSize.width
-        textView.textContainer?.containerSize = NSSize(width: contentSize.width - 16, height: CGFloat.greatestFiniteMagnitude)
+        if textView.frame.size.width != contentSize.width {
+            textView.frame.size.width = contentSize.width
+        }
+        let newContainerSize = NSSize(width: contentSize.width - 16, height: CGFloat.greatestFiniteMagnitude)
+        if textView.textContainer?.containerSize != newContainerSize {
+            textView.textContainer?.containerSize = newContainerSize
+        }
 
         // 내용 업데이트 (변경된 경우에만)
-        if textView.string != content && !context.coordinator.isUpdating {
+        // textView.string은 대형 문서에서 NSTextStorage 브리징 비용이 크고(실측 ~10ms/틱)
+        // 여기에 전체 문자열 비교까지 더해진다. Coordinator가 동기화된 콘텐츠를 캐시해
+        // O(1) 선판정으로 대체하고, textView는 실제로 밀어넣을 때만 건드린다.
+        if !context.coordinator.isUpdating && context.coordinator.needsContentPush(content) {
             let selectedRanges = textView.selectedRanges
+            // 무효화는 반드시 대입 "앞"에서 한다.
+            // textView.string 대입은 textViewDidChangeSelection을 동기 발화시키는데,
+            // 뒤에서 무효화하면 그 콜백이 stale 인덱스로 라인을 계산한다
+            // (신·구 길이가 같으면 길이 기반 자동 감지도 걸리지 않는다).
+            context.coordinator.invalidateLineIndex()
             textView.string = content
             textView.selectedRanges = selectedRanges
+            context.coordinator.markContentSynced(content)
+            // 새 문서 → 전체 레이아웃 사전 계산 재시작
+            context.coordinator.beginFullLayoutPrecompute(for: textView)
+            // string 대입은 textStorage를 교체해 폰트/색 속성을 초기화한다.
+            // 캐시를 비워 바로 아래 applyTheme가 강제로 재적용하게 한다
+            // (안 그러면 2번째 파일 로드부터 기본 폰트로 회귀한다).
+            context.coordinator.lastAppliedFont = nil
+            context.coordinator.lastAppliedTextColor = nil
         }
 
         // 테마 업데이트
-        applyTheme(to: textView)
+        applyTheme(to: textView, coordinator: context.coordinator)
         scrollView.backgroundColor = theme.backgroundColor
 
         // 드롭/이미지 핸들러 업데이트
@@ -271,26 +305,40 @@ struct MarkdownNSTextView: NSViewRepresentable {
     }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(content: $content, lineCount: $lineCount, editorScrollOffset: $editorScrollOffset, onContentChange: onContentChange)
+        Coordinator(content: $content, lineCount: $lineCount, scrollState: scrollState, onContentChange: onContentChange)
     }
 
-    private func applyTheme(to textView: NSTextView) {
+    private func applyTheme(to textView: NSTextView, coordinator: Coordinator) {
         textView.backgroundColor = theme.backgroundColor
         textView.insertionPointColor = theme.cursorColor
         textView.selectedTextAttributes = [
             .backgroundColor: theme.selectionColor
         ]
 
+        // font/textColor는 같은 값을 다시 대입해도 전체 텍스트 레이아웃이 무효화된다.
+        // updateNSView가 스크롤마다 호출되므로 값이 실제로 바뀐 경우에만 대입한다.
+        //
+        // 비교 대상으로 textView.font/textColor 게터를 쓰면 안 된다 —
+        // 게터는 textStorage 첫 문자의 속성을 반영하므로 포커스 모드가 텍스트를 딤 처리하면
+        // 딤 색이 돌아와 가드가 매번 통과하고(성능 이득 소멸),
+        // 이어지는 전체 재대입이 포커스 딤을 지워버린다(기능 회귀).
+        // 혼합 폰트일 때 font 게터가 nil을 주는 함정도 같은 이유로 회피된다.
         let font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
-        textView.font = font
-        textView.textColor = theme.textColor
+        if coordinator.lastAppliedFont != font {
+            textView.font = font
+            coordinator.lastAppliedFont = font
+        }
+        if coordinator.lastAppliedTextColor != theme.textColor {
+            textView.textColor = theme.textColor
+            coordinator.lastAppliedTextColor = theme.textColor
+        }
     }
 
     // MARK: - Coordinator
     class Coordinator: NSObject, NSTextViewDelegate {
         var content: Binding<String>
         var lineCount: Binding<Int>
-        var editorScrollOffset: Binding<CGFloat>
+        let scrollState: EditorScrollState
         var onContentChange: ((String) -> Void)?
         var onCursorLineChange: ((Int) -> Void)?
         var scrollSyncManager: ScrollSyncManager?
@@ -298,10 +346,133 @@ struct MarkdownNSTextView: NSViewRepresentable {
         var isUpdating = false
         private var lastSelectionTime: CFTimeInterval = 0
 
-        init(content: Binding<String>, lineCount: Binding<Int>, editorScrollOffset: Binding<CGFloat>, onContentChange: ((String) -> Void)?) {
+        // MARK: - 전체 레이아웃 사전 계산
+        // 글리프 레이아웃은 지연 생성이라, 미레이아웃 영역으로 점프하면 glyphIndex(for:in:)가
+        // 그 지점까지의 레이아웃을 한 번에 수행하며 메인 스레드를 막는다(실측 589~708ms).
+        // 프리뷰 스크롤은 에디터를 임의 위치로 점프시키므로 이 경로에 상시 노출된다.
+        // → 문서 로드 후 전체 레이아웃을 미리 만들어 메모리에 유지한다.
+        //   메인 스레드를 오래 막지 않도록 청크로 나눠 런루프에 양보하며 진행한다.
+        private var layoutPrecomputeGeneration = 0
+
+        func beginFullLayoutPrecompute(for textView: NSTextView) {
+            guard let layoutManager = textView.layoutManager,
+                  let textContainer = textView.textContainer else { return }
+            let total = (textView.string as NSString).length
+            guard total > 0 else { return }
+
+            layoutPrecomputeGeneration += 1
+            let generation = layoutPrecomputeGeneration
+            let started = CACurrentMediaTime()
+            // 청크가 크면 청크당 히치가 커진다(40k자 기준 실측 ~139ms).
+            // 작게 잡아 청크당 수십 ms 이내로 유지한다.
+            let chunkSize = 8_000
+            var location = 0
+
+            func step() {
+                // 문서가 바뀌었으면 중단
+                guard generation == self.layoutPrecomputeGeneration else { return }
+                guard location < total else {
+                    let ms = (CACurrentMediaTime() - started) * 1000
+                    DebugLogger.shared.log("[Layout] 사전 계산 완료 chars:\(total) \(String(format: "%.0f", ms))ms")
+                    return
+                }
+                let length = min(chunkSize, total - location)
+                layoutManager.ensureLayout(forCharacterRange: NSRange(location: location, length: length))
+                location += length
+                // 런루프에 양보 — 사용자 입력을 막지 않는다
+                DispatchQueue.main.async(execute: step)
+            }
+            // 첫 화면 표시를 방해하지 않도록 다음 런루프 턴부터 시작
+            DispatchQueue.main.async(execute: step)
+            _ = textContainer
+        }
+
+        // MARK: - 콘텐츠 동기화 캐시
+        // textView와 동기화된 것으로 간주하는 콘텐츠와 그 UTF-16 길이.
+        // 에디터에서 나간 변경(textDidChange)이 이 값을 갱신하므로, 같은 값이
+        // SwiftUI를 거쳐 되돌아와도 재대입하지 않는다.
+        // 외부 주입(파일 로드 등)은 값이 다르므로 정상적으로 대입된다.
+        private var syncedContent: String = ""
+        private var syncedUTF16Length: Int = 0
+
+        func markContentSynced(_ text: String) {
+            syncedContent = text
+            // NSTextView에서 온 문자열은 브릿지 객체라 utf8.count가 O(n)일 수 있다.
+            // 길이 선판정에 쓸 값을 여기서 한 번만 계산해 캐시한다.
+            syncedUTF16Length = (text as NSString).length
+        }
+
+        /// textView에 content를 다시 밀어넣어야 하는지 판정한다.
+        /// 길이가 다르면 즉시 결정되고, 같을 때만 == 비교로 확정한다
+        /// (동일 스토리지를 공유하면 포인터 비교로 O(1)).
+        func needsContentPush(_ candidate: String) -> Bool {
+            if (candidate as NSString).length != syncedUTF16Length { return true }
+            return candidate != syncedContent
+        }
+
+        // 마지막으로 적용한 폰트/텍스트 색 (applyTheme의 재대입 가드용).
+        // textView 게터는 포커스 모드 딤 등 런타임 속성 변경에 오염되므로 별도로 캐시한다.
+        var lastAppliedFont: NSFont?
+        var lastAppliedTextColor: NSColor?
+
+        // MARK: - 라인 인덱스 캐시
+        // 스크롤 틱마다 substring + components(separatedBy:)로 O(n) 스캔을 하면
+        // 문서 하단으로 갈수록 비용이 커진다(실측 3.5ms/틱).
+        // 라인 시작 오프셋 배열을 텍스트 변경 시에만 재구축하고 조회는 이진 탐색으로 처리한다.
+        private var lineStarts: [Int] = [0]
+        private var indexedLength: Int = -1
+
+        /// 텍스트가 바뀌었음을 알려 다음 조회 시 인덱스를 재구축하게 한다.
+        func invalidateLineIndex() {
+            indexedLength = -1
+        }
+
+        /// UTF-16 오프셋 → 0-based 라인 번호
+        func lineNumber(for utf16Offset: Int, in text: String) -> Int {
+            let ns = text as NSString
+            rebuildLineIndexIfNeeded(ns)
+
+            let target = max(0, min(utf16Offset, ns.length))
+            // lineStarts는 오름차순 → target 이하인 마지막 원소의 인덱스가 라인 번호
+            var low = 0
+            var high = lineStarts.count - 1
+            var result = 0
+            while low <= high {
+                let mid = (low + high) / 2
+                if lineStarts[mid] <= target {
+                    result = mid
+                    low = mid + 1
+                } else {
+                    high = mid - 1
+                }
+            }
+            return result
+        }
+
+        private func rebuildLineIndexIfNeeded(_ ns: NSString) {
+            // invalidateLineIndex()가 -1로 만들거나, 외부 경로로 길이가 달라진 경우 재구축
+            guard ns.length != indexedLength else { return }
+
+            var starts: [Int] = [0]
+            var searchStart = 0
+            while searchStart < ns.length {
+                // .literal: 정준 동등성 비교 경로를 피한다 (키 입력마다 도는 경로)
+                let found = ns.range(of: "\n",
+                                     options: .literal,
+                                     range: NSRange(location: searchStart, length: ns.length - searchStart))
+                if found.location == NSNotFound { break }
+                let next = found.location + found.length
+                starts.append(next)
+                searchStart = next
+            }
+            lineStarts = starts
+            indexedLength = ns.length
+        }
+
+        init(content: Binding<String>, lineCount: Binding<Int>, scrollState: EditorScrollState, onContentChange: ((String) -> Void)?) {
             self.content = content
             self.lineCount = lineCount
-            self.editorScrollOffset = editorScrollOffset
+            self.scrollState = scrollState
             self.onContentChange = onContentChange
         }
 
@@ -317,11 +488,8 @@ struct MarkdownNSTextView: NSViewRepresentable {
             findReplaceManager?.markEditorActive()
 
             // 현재 라인 번호 계산
-            let text = textView.string
             let cursorPosition = textView.selectedRange().location
-            let nsText = text as NSString
-            let textUpToCursor = nsText.substring(to: min(cursorPosition, nsText.length))
-            let currentLine = textUpToCursor.components(separatedBy: "\n").count - 1  // 0-based
+            let currentLine = lineNumber(for: cursorPosition, in: textView.string)  // 0-based
             lastSelectionTime = CACurrentMediaTime()
             DebugLogger.shared.log("[Outline] textViewDidChangeSelection: cursorPos:\(cursorPosition), line:\(currentLine), lastSelectionTime:\(lastSelectionTime)")
             onCursorLineChange?(currentLine)
@@ -341,8 +509,13 @@ struct MarkdownNSTextView: NSViewRepresentable {
 
             isUpdating = true
             let newText = textView.string
+            // 에디터발 변경 → 동기화 기준값 갱신
+            // (이 값이 SwiftUI를 거쳐 되돌아와도 updateNSView가 재대입하지 않는다)
+            markContentSynced(newText)
             content.wrappedValue = newText
-            lineCount.wrappedValue = max(1, newText.components(separatedBy: "\n").count)
+            // 텍스트가 바뀌었으므로 라인 인덱스를 무효화하고, 재구축 결과로 라인 수를 구한다
+            invalidateLineIndex()
+            lineCount.wrappedValue = max(1, lineNumber(for: (newText as NSString).length, in: newText) + 1)
 
             // 콘텐츠 변경 콜백 호출
             onContentChange?(newText)
@@ -350,10 +523,35 @@ struct MarkdownNSTextView: NSViewRepresentable {
             isUpdating = false
         }
 
+        // 프로그램적 스크롤이 멎은 뒤 1회만 가시 라인을 갱신하기 위한 디바운스
+        private var deferredVisibleLineWork: DispatchWorkItem?
+
+        private func scheduleDeferredVisibleLineUpdate(from notification: Notification) {
+            deferredVisibleLineWork?.cancel()
+            let work = DispatchWorkItem { [weak self] in
+                self?.updateVisibleLine(from: notification)
+            }
+            deferredVisibleLineWork = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15, execute: work)
+        }
+
+        private func updateVisibleLine(from notification: Notification) {
+            guard let clipView = notification.object as? NSClipView,
+                  let textView = clipView.documentView as? NSTextView,
+                  let layoutManager = textView.layoutManager,
+                  let textContainer = textView.textContainer else { return }
+
+            let visibleRect = clipView.documentVisibleRect
+            let topPoint = NSPoint(x: 0, y: visibleRect.origin.y + textView.textContainerInset.height)
+            let glyphIndex = layoutManager.glyphIndex(for: topPoint, in: textContainer)
+            let charIndex = layoutManager.characterIndexForGlyph(at: glyphIndex)
+            onCursorLineChange?(lineNumber(for: charIndex, in: textView.string))
+        }
+
         @objc func scrollViewDidScroll(_ notification: Notification) {
             // 라인 번호 스크롤 동기화
             if let clipView = notification.object as? NSClipView {
-                editorScrollOffset.wrappedValue = clipView.bounds.origin.y
+                scrollState.offset = clipView.bounds.origin.y
             }
 
             scrollSyncManager?.editorDidScroll()
@@ -374,6 +572,14 @@ struct MarkdownNSTextView: NSViewRepresentable {
                 return
             }
 
+            // 프리뷰가 유발한 프로그램적 스크롤 중에는 무거운 작업(글리프 조회 → 라인 계산)을
+            // 매 알림마다 하지 않고, 스크롤이 멎은 뒤 1회만 수행한다.
+            // 아웃라인 하이라이트는 조금 늦어도 무방하다.
+            if scrollSyncManager?.isProgrammaticScrollActive == true {
+                scheduleDeferredVisibleLineUpdate(from: notification)
+                return
+            }
+
             // 스크롤 시 보이는 첫 줄 기준으로 아웃라인 업데이트
             guard let clipView = notification.object as? NSClipView,
                   let textView = clipView.documentView as? NSTextView,
@@ -385,10 +591,7 @@ struct MarkdownNSTextView: NSViewRepresentable {
             let glyphIndex = layoutManager.glyphIndex(for: topPoint, in: textContainer)
             let charIndex = layoutManager.characterIndexForGlyph(at: glyphIndex)
 
-            let text = textView.string
-            let nsText = text as NSString
-            let textUpToVisible = nsText.substring(to: min(charIndex, nsText.length))
-            let visibleLine = textUpToVisible.components(separatedBy: "\n").count - 1
+            let visibleLine = lineNumber(for: charIndex, in: textView.string)
             DebugLogger.shared.log("[Outline] scrollViewDidScroll → visibleLine:\(visibleLine) (elapsed:\(String(format: "%.3f", elapsed))s)")
             onCursorLineChange?(visibleLine)
         }
@@ -431,8 +634,11 @@ class EditorTextView: NSTextView {
         let fullRange = NSRange(location: 0, length: textStorage.length)
 
         // Find the current paragraph range
-        let cursorLocation = selectedRange().location
-        let paragraphRange = (string as NSString).paragraphRange(for: NSRange(location: min(cursorLocation, string.count), length: 0))
+        // selectedRange는 UTF-16 오프셋이므로 상한도 UTF-16 길이로 맞춘다
+        // (string.count는 Character 수라 한글 문서에서 범위가 어긋난다)
+        let nsString = string as NSString
+        let cursorLocation = min(selectedRange().location, nsString.length)
+        let paragraphRange = nsString.paragraphRange(for: NSRange(location: cursorLocation, length: 0))
 
         // Dim all text
         textStorage.addAttribute(.foregroundColor, value: (textColor ?? .white).withAlphaComponent(0.3), range: fullRange)
@@ -457,6 +663,9 @@ class EditorTextView: NSTextView {
               let scrollView = enclosingScrollView else { return }
 
         let cursorRange = selectedRange()
+        // 절대 좌표로 스크롤하기 전에 선행 구간 레이아웃을 확정한다.
+        // (연속 레이아웃에서는 대개 이미 확정돼 즉시 반환되는 방어적 호출)
+        layoutManager.ensureLayout(forCharacterRange: NSRange(location: 0, length: cursorRange.location))
         let glyphRange = layoutManager.glyphRange(forCharacterRange: cursorRange, actualCharacterRange: nil)
         let lineRect = layoutManager.boundingRect(forGlyphRange: glyphRange, in: textContainer)
 
@@ -569,20 +778,28 @@ class EditorTextView: NSTextView {
 }
 
 // MARK: - 라인 번호 뷰 (NSView 기반 — 보이는 라인만 그려서 성능 최적화)
+// 에디터 스크롤 오프셋 전용 상태.
+// 스크롤 틱마다 갱신되므로, 이걸 구독하는 뷰를 라인번호 뷰 하나로 제한해
+// 에디터 body 전체가 매 틱 재평가되는 것을 막는다.
+class EditorScrollState: ObservableObject {
+    @Published var offset: CGFloat = 0
+}
+
 struct LineNumberView: NSViewRepresentable {
     let lineCount: Int
     let theme: EditorTheme
     let fontSize: CGFloat
-    var scrollOffset: CGFloat = 0
+    // 스크롤 오프셋 변경을 실제로 구독하는 유일한 뷰
+    @ObservedObject var scrollState: EditorScrollState
 
     func makeNSView(context: Context) -> LineNumberNSView {
         let view = LineNumberNSView()
-        view.update(lineCount: lineCount, theme: theme, fontSize: fontSize, scrollOffset: scrollOffset)
+        view.update(lineCount: lineCount, theme: theme, fontSize: fontSize, scrollOffset: scrollState.offset)
         return view
     }
 
     func updateNSView(_ view: LineNumberNSView, context: Context) {
-        view.update(lineCount: lineCount, theme: theme, fontSize: fontSize, scrollOffset: scrollOffset)
+        view.update(lineCount: lineCount, theme: theme, fontSize: fontSize, scrollOffset: scrollState.offset)
         view.needsDisplay = true
     }
 }

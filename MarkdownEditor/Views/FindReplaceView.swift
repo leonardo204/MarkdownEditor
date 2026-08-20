@@ -291,6 +291,9 @@ class FindReplaceManager: ObservableObject {
               currentMatchIndex < matchRanges.count else { return }
 
         let range = matchRanges[currentMatchIndex]
+        // 대상의 절대 위치가 추정치가 되어 엉뚱한 곳으로 스크롤되지 않도록
+        // 선행 구간 레이아웃을 먼저 확정한다 (방어적 호출).
+        textView.layoutManager?.ensureLayout(forCharacterRange: NSRange(location: 0, length: range.location))
         // scrollRangeToVisible만 호출 — setSelectedRange 하지 않아 포커스 유지
         textView.scrollRangeToVisible(range)
     }

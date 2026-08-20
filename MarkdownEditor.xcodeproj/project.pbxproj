@@ -29,6 +29,7 @@
 		FINDREPL001AF62F00413E11465 /* FindReplaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FINDREPL001AF62F00413E11464 /* FindReplaceView.swift */; };
 		MKCORE001AF62F00413E11465 /* MarkdownCore in Frameworks */ = {isa = PBXBuildFile; productRef = MKCORE001AF62F00413E11464 /* MarkdownCore */; };
 		MKCORE002AF62F00413E11465 /* MarkdownCore in Frameworks */ = {isa = PBXBuildFile; productRef = MKCORE002AF62F00413E11466 /* MarkdownCore */; };
+		4C1A9E7B03D5F26A81BC0422 /* LocalImageSchemeHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C1A9E7B03D5F26A81BC0421 /* LocalImageSchemeHandler.swift */; };
 		STORE001AF62F00413E114665 /* StoreManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = STORE001AF62F00413E114664 /* StoreManager.swift */; };
 		SWIFTMD003AF62F00413E11465 /* Markdown in Frameworks */ = {isa = PBXBuildFile; productRef = SWIFTMD002AF62F00413E11464 /* Markdown */; };
 		TAB001BFAF62F00413E114665 /* TabManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = TAB001BFAF62F00413E114664 /* TabManager.swift */; };
@@ -93,6 +94,7 @@
 		BE95E5BBF83EADAD8BEE08B1 /* MarkdownProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownProcessor.swift; sourceTree = "<group>"; };
 		DOCCONTENT001AF62F0041464 /* DocumentContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentContentView.swift; sourceTree = "<group>"; };
 		FINDREPL001AF62F00413E11464 /* FindReplaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FindReplaceView.swift; sourceTree = "<group>"; };
+		4C1A9E7B03D5F26A81BC0421 /* LocalImageSchemeHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalImageSchemeHandler.swift; sourceTree = "<group>"; };
 		STORE001AF62F00413E114664 /* StoreManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreManager.swift; sourceTree = "<group>"; };
 		TAB001BFAF62F00413E114664 /* TabManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabManager.swift; sourceTree = "<group>"; };
 		TAB002BFAF62F00413E114664 /* TabBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabBarView.swift; sourceTree = "<group>"; };
@@ -218,6 +220,7 @@
 		A47DDF47FB59C1D0F1CFD354 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				4C1A9E7B03D5F26A81BC0421 /* LocalImageSchemeHandler.swift */,
 				BE95E5BBF83EADAD8BEE08B1 /* MarkdownProcessor.swift */,
 				STORE001AF62F00413E114664 /* StoreManager.swift */,
 			);
@@ -431,6 +434,7 @@
 				TAB001BFAF62F00413E114665 /* TabManager.swift in Sources */,
 				TAB002BFAF62F00413E114665 /* TabBarView.swift in Sources */,
 				WINMGT001AF62F00413E11465 /* TabService.swift in Sources */,
+				4C1A9E7B03D5F26A81BC0422 /* LocalImageSchemeHandler.swift in Sources */,
 				STORE001AF62F00413E114665 /* StoreManager.swift in Sources */,
 				B8DCFEFBDBB5CDBED45A3DAD /* ToolbarView.swift in Sources */,
 			);

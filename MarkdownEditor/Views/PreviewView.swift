@@ -167,6 +167,8 @@ struct PreviewView: NSViewRepresentable {
             <script>
                 // 모든 렌더링은 DOMContentLoaded 후에 수행
                 document.addEventListener('DOMContentLoaded', async function() {
+                    // 소스 라인 앵커 수집 (VSCode식 스크롤 동기화)
+                    meBuildLineAnchors();
                     // 코드 하이라이팅
                     if (typeof hljs !== 'undefined') {
                         document.querySelectorAll('pre code').forEach((block) => {
@@ -275,9 +277,80 @@ struct PreviewView: NSViewRepresentable {
                                             { passive: true, capture: true });
                 });
 
-                // 스크롤 동기화를 위한 스크롤 이벤트 핸들러
+                // ── VSCode식 소스 라인 앵커 (스크롤 동기화) ──────────────────
+                // 블록 요소의 data-source-line(0-based)을 문서 로드당 1회만 수집해
+                // {line, el} 배열로 캐시한다. 스크롤 틱마다 DOM 전체를 다시 훑지 않는다.
+                // 요소 참조를 저장하므로 이미지·다이어그램 리플로우 후에도 위치는
+                // getBoundingClientRect로 매번 새로 읽혀 항상 정확하다.
+                var meLineAnchors = [];
+                function meBuildLineAnchors() {
+                    meLineAnchors = [];
+                    var els = document.querySelectorAll('[data-source-line]');
+                    for (var i = 0; i < els.length; i++) {
+                        var ln = parseInt(els[i].getAttribute('data-source-line'), 10);
+                        if (!isNaN(ln)) meLineAnchors.push({ line: ln, el: els[i] });
+                    }
+                    meLineAnchors.sort(function(a, b){ return a.line - b.line; });
+                }
+                function meDocTop(el) {
+                    return el.getBoundingClientRect().top + window.scrollY;
+                }
+                // 소스 라인(소수 가능)을 감싸는 앞쪽 앵커 인덱스 이진탐색
+                function meAnchorIndexForLine(line) {
+                    var lo = 0, hi = meLineAnchors.length - 1, prev = 0;
+                    while (lo <= hi) {
+                        var mid = (lo + hi) >> 1;
+                        if (meLineAnchors[mid].line <= line) { prev = mid; lo = mid + 1; }
+                        else hi = mid - 1;
+                    }
+                    return prev;
+                }
+                // 에디터 → 프리뷰: 소스 라인을 두 앵커 사이 선형 보간해 즉시 스크롤한다.
+                // instant(smooth 금지) — 매 틱 smooth를 걸면 애니메이션이 큐에 쌓여 오히려
+                // 버벅인다. 업데이트가 60fps로 촘촘하므로 instant가 곧 부드러움이다.
+                function meScrollToLine(line) {
+                    if (!meLineAnchors.length) return;
+                    var i = meAnchorIndexForLine(line);
+                    var prev = meLineAnchors[i];
+                    var next = meLineAnchors[i + 1];
+                    var prevTop = meDocTop(prev.el);
+                    var y;
+                    if (!next || next.line <= prev.line) {
+                        y = prevTop;
+                    } else {
+                        var progress = (line - prev.line) / (next.line - prev.line);
+                        if (progress < 0) progress = 0; else if (progress > 1) progress = 1;
+                        y = prevTop + progress * (meDocTop(next.el) - prevTop);
+                    }
+                    var maxY = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight) - window.innerHeight;
+                    if (y < 0) y = 0; else if (y > maxY) y = maxY;
+                    if (Math.abs(y - window.scrollY) < 0.5) return;
+                    window.scrollTo(0, y);
+                }
+                // 프리뷰 → 에디터: 현재 최상단 오프셋을 소스 라인(소수)으로 역보간한다.
+                function meLineForScroll() {
+                    if (!meLineAnchors.length) return 0;
+                    var scrollTop = window.scrollY;
+                    var lo = 0, hi = meLineAnchors.length - 1, prev = 0;
+                    while (lo <= hi) {
+                        var mid = (lo + hi) >> 1;
+                        if (meDocTop(meLineAnchors[mid].el) <= scrollTop) { prev = mid; lo = mid + 1; }
+                        else hi = mid - 1;
+                    }
+                    var p = meLineAnchors[prev];
+                    var n = meLineAnchors[prev + 1];
+                    var pTop = meDocTop(p.el);
+                    if (!n) return p.line;
+                    var nTop = meDocTop(n.el);
+                    if (nTop <= pTop) return p.line;
+                    var progress = (scrollTop - pTop) / (nTop - pTop);
+                    if (progress < 0) progress = 0; else if (progress > 1) progress = 1;
+                    return p.line + progress * (n.line - p.line);
+                }
+
+                // 스크롤 동기화를 위한 스크롤 이벤트 핸들러 (라인 기반)
                 let scrollPending = false;
-                let lastScrollPercent = -1;
+                let lastScrollLine = -1;
                 window.addEventListener('scroll', function() {
                     if (scrollPending) return;
                     scrollPending = true;
@@ -287,16 +360,12 @@ struct PreviewView: NSViewRepresentable {
                         // (휠을 굴리는 동안 입력 시각이 계속 갱신되므로 관성 구간도 정상 동기화된다)
                         if (Date.now() - meLastUserInput > 700) { scrollPending = false; return; }
 
-                        var height = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
-                        var scrollableHeight = height - window.innerHeight;
-                        if (scrollableHeight > 0) {
-                            var scrollPercent = window.scrollY / scrollableHeight;
-                            // 변화가 있을 때만 전송
-                            if (Math.abs(scrollPercent - lastScrollPercent) > 0.001) {
-                                lastScrollPercent = scrollPercent;
-                                if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.scrollHandler) {
-                                    window.webkit.messageHandlers.scrollHandler.postMessage(scrollPercent);
-                                }
+                        var line = meLineForScroll();
+                        // 변화가 있을 때만 전송
+                        if (Math.abs(line - lastScrollLine) > 0.01) {
+                            lastScrollLine = line;
+                            if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.scrollHandler) {
+                                window.webkit.messageHandlers.scrollHandler.postMessage(line);
                             }
                         }
                         scrollPending = false;
@@ -508,30 +577,30 @@ struct PreviewView: NSViewRepresentable {
             syncManager.beginLoadSettling()
 
             // 에디터의 현재 커서 라인 기준으로 프리뷰 동기화 (더 정확한 위치)
-            let percent = syncManager.getEditorCursorLinePercent()
+            let line = syncManager.getEditorCursorLine()
 
-            // 약간의 딜레이 후 스크롤 (렌더링 완료 대기)
+            // 약간의 딜레이 후 스크롤 (렌더링·앵커 수집 완료 대기)
             // 반드시 syncManager를 경유해야 한다 — 직접 scrollTo하면 그 에코가 사용자 스크롤로
             // 오인되어 파일 오픈 직후 에디터가 엉뚱한 위치로 끌려간다.
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                syncManager.scrollPreviewToPercent(percent, in: webView)
+                syncManager.scrollPreviewToLine(line, in: webView)
             }
         }
 
         // JavaScript에서 스크롤/링크 이벤트 수신
         func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
             if message.name == "scrollHandler" {
-                // 페이로드는 Double이지만 객체 형태도 안전하게 받는다
-                let scrollPercent: Double?
+                // 페이로드는 소스 라인(Double)이지만 객체 형태도 안전하게 받는다
+                let sourceLine: Double?
                 if let value = message.body as? Double {
-                    scrollPercent = value
+                    sourceLine = value
                 } else if let dict = message.body as? [String: Any] {
-                    scrollPercent = dict["percent"] as? Double
+                    sourceLine = dict["line"] as? Double
                 } else {
-                    scrollPercent = nil
+                    sourceLine = nil
                 }
-                if let scrollPercent {
-                    scrollSyncManager?.previewDidScroll(scrollPercent: scrollPercent)
+                if let sourceLine {
+                    scrollSyncManager?.previewDidScroll(sourceLine: sourceLine)
                 }
             } else if message.name == "linkHandler",
                       let href = message.body as? String {

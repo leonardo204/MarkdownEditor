@@ -229,6 +229,19 @@ struct MarkdownNSTextView: NSViewRepresentable {
 
         // 스크롤 동기화 매니저에 등록
         scrollSyncManager?.editorScrollView = scrollView
+        // 프리뷰→에디터 역동기화용 빠른 라인→오프셋 조회 주입 (Coordinator lineStarts 재사용)
+        scrollSyncManager?.editorLineToOffset = { [weak coordinator = context.coordinator, weak textView] line in
+            guard let coordinator, let textView else { return 0 }
+            return coordinator.charOffset(forLine: line, in: textView.string)
+        }
+
+        // 라인 번호 뷰가 실제 텍스트 레이아웃을 참조하도록 배선.
+        // charIndex(UTF-16) → 0-based 라인 조회는 Coordinator의 lineStarts 이진탐색 재사용.
+        context.coordinator.scrollState.textView = textView
+        context.coordinator.scrollState.lineNumberProvider = { [weak coordinator = context.coordinator, weak textView] idx in
+            guard let coordinator, let textView else { return 0 }
+            return coordinator.lineNumber(for: idx, in: textView.string)
+        }
 
         // 스크롤 이벤트 감지
         context.coordinator.scrollSyncManager = scrollSyncManager
@@ -449,6 +462,16 @@ struct MarkdownNSTextView: NSViewRepresentable {
             return result
         }
 
+        /// 0-based 라인 번호 → 라인 시작 UTF-16 오프셋 (lineStarts 캐시 재사용).
+        /// 프리뷰→에디터 역동기화가 매 틱 O(n) 스캔을 피하도록 이진탐색 인덱스를 재활용한다.
+        func charOffset(forLine line: Int, in text: String) -> Int {
+            let ns = text as NSString
+            rebuildLineIndexIfNeeded(ns)
+            if line <= 0 { return 0 }
+            if line >= lineStarts.count { return ns.length }
+            return lineStarts[line]
+        }
+
         private func rebuildLineIndexIfNeeded(_ ns: NSString) {
             // invalidateLineIndex()가 -1로 만들거나, 외부 경로로 길이가 달라진 경우 재구축
             guard ns.length != indexedLength else { return }
@@ -594,6 +617,9 @@ struct MarkdownNSTextView: NSViewRepresentable {
             let visibleLine = lineNumber(for: charIndex, in: textView.string)
             DebugLogger.shared.log("[Outline] scrollViewDidScroll → visibleLine:\(visibleLine) (elapsed:\(String(format: "%.3f", elapsed))s)")
             onCursorLineChange?(visibleLine)
+
+            // VSCode식: 최상단 가시 라인을 프리뷰에 보간 전달 (60fps 쓰로틀은 매니저가 담당)
+            scrollSyncManager?.syncPreviewToEditorLine(visibleLine)
         }
     }
 }
@@ -783,6 +809,10 @@ class EditorTextView: NSTextView {
 // 에디터 body 전체가 매 틱 재평가되는 것을 막는다.
 class EditorScrollState: ObservableObject {
     @Published var offset: CGFloat = 0
+    // 라인 번호를 실제 텍스트 레이아웃에 맞춰 그리기 위한 비발행 참조.
+    // (@Published가 아니므로 대입해도 SwiftUI 갱신을 유발하지 않는다)
+    weak var textView: NSTextView?
+    var lineNumberProvider: ((Int) -> Int)?  // charIndex(UTF-16) → 0-based 라인
 }
 
 struct LineNumberView: NSViewRepresentable {
@@ -794,12 +824,18 @@ struct LineNumberView: NSViewRepresentable {
 
     func makeNSView(context: Context) -> LineNumberNSView {
         let view = LineNumberNSView()
-        view.update(lineCount: lineCount, theme: theme, fontSize: fontSize, scrollOffset: scrollState.offset)
+        view.update(lineCount: lineCount, theme: theme, fontSize: fontSize,
+                    scrollOffset: scrollState.offset,
+                    textView: scrollState.textView,
+                    provider: scrollState.lineNumberProvider)
         return view
     }
 
     func updateNSView(_ view: LineNumberNSView, context: Context) {
-        view.update(lineCount: lineCount, theme: theme, fontSize: fontSize, scrollOffset: scrollState.offset)
+        view.update(lineCount: lineCount, theme: theme, fontSize: fontSize,
+                    scrollOffset: scrollState.offset,
+                    textView: scrollState.textView,
+                    provider: scrollState.lineNumberProvider)
         view.needsDisplay = true
     }
 }
@@ -811,16 +847,21 @@ class LineNumberNSView: NSView {
     private var textColor: NSColor = .secondaryLabelColor
     private var bgColor: NSColor = .windowBackgroundColor
     private var borderColor: NSColor = .separatorColor
+    private weak var textView: NSTextView?
+    private var lineNumberProvider: ((Int) -> Int)?
 
     override var isFlipped: Bool { true }
 
-    func update(lineCount: Int, theme: EditorTheme, fontSize: CGFloat, scrollOffset: CGFloat) {
+    func update(lineCount: Int, theme: EditorTheme, fontSize: CGFloat, scrollOffset: CGFloat,
+                textView: NSTextView?, provider: ((Int) -> Int)?) {
         self.lineCount = lineCount
         self.editorFontSize = fontSize
         self.scrollOffset = scrollOffset
         self.textColor = theme.lineNumberColor
         self.bgColor = theme.gutterBackgroundColor
         self.borderColor = theme.gutterBorderColor
+        self.textView = textView
+        self.lineNumberProvider = provider
     }
 
     override func draw(_ dirtyRect: NSRect) {
@@ -828,15 +869,79 @@ class LineNumberNSView: NSView {
         bgColor.setFill()
         bounds.fill()
 
-        let lineHeight = editorFontSize * 1.35
-        let topPadding: CGFloat = 8
         let font = NSFont.monospacedSystemFont(ofSize: editorFontSize * 0.85, weight: .regular)
         let attrs: [NSAttributedString.Key: Any] = [
             .font: font,
             .foregroundColor: textColor
         ]
 
-        // 보이는 영역만 계산하여 그리기
+        // 실제 텍스트 레이아웃 기반 렌더링.
+        // 줄바꿈(soft wrap)·헤딩·이미지로 행 높이가 제각각이므로 고정 높이 가정은 못 쓴다.
+        // 가시 영역에 걸친 라인 프래그먼트만 순회하고, 각 소스 라인의 첫 프래그먼트에만 번호를 그린다.
+        if let textView, let provider = lineNumberProvider,
+           let layoutManager = textView.layoutManager,
+           let textContainer = textView.textContainer {
+            drawWithLayout(layoutManager: layoutManager, textContainer: textContainer,
+                           textView: textView, provider: provider, attrs: attrs)
+        } else {
+            // 폴백: 레이아웃 배선 전이면 고정 높이 근사로 그린다.
+            drawFixedHeight(attrs: attrs)
+        }
+
+        // 우측 보더
+        borderColor.setFill()
+        NSRect(x: bounds.width - 1, y: 0, width: 1, height: bounds.height).fill()
+    }
+
+    private func drawWithLayout(layoutManager: NSLayoutManager, textContainer: NSTextContainer,
+                                textView: NSTextView, provider: @escaping (Int) -> Int,
+                                attrs: [NSAttributedString.Key: Any]) {
+        let inset = textView.textContainerInset.height
+
+        // 가시 영역을 컨테이너 좌표로 변환 (textView y = container y + inset)
+        let visibleContainerRect = NSRect(x: 0,
+                                          y: scrollOffset - inset,
+                                          width: textContainer.size.width,
+                                          height: bounds.height)
+        let glyphRange = layoutManager.glyphRange(forBoundingRect: visibleContainerRect, in: textContainer)
+
+        var lastDrawnLine = -1
+        layoutManager.enumerateLineFragments(forGlyphRange: glyphRange) { _, usedRect, _, fragmentGlyphRange, _ in
+            let charIndex = layoutManager.characterIndexForGlyph(at: fragmentGlyphRange.location)
+            let line = provider(charIndex)  // 0-based
+            // 접힌(soft-wrap) 줄은 같은 소스 라인 → 첫 프래그먼트에만 번호를 그린다
+            if line == lastDrawnLine { return }
+            lastDrawnLine = line
+
+            // 컨테이너 좌표 → 거터(flipped) 좌표
+            let yInGutter = usedRect.minY + inset - self.scrollOffset
+            let str = "\(line + 1)"
+            let size = (str as NSString).size(withAttributes: attrs)
+            let x = self.bounds.width - size.width - 9
+            (str as NSString).draw(at: NSPoint(x: x, y: yInGutter + (usedRect.height - size.height) / 2),
+                                   withAttributes: attrs)
+        }
+
+        // 마지막 빈 줄(문서가 개행으로 끝나는 경우 등)의 번호도 그린다
+        if layoutManager.extraLineFragmentTextContainer != nil {
+            let rect = layoutManager.extraLineFragmentUsedRect
+            let yInGutter = rect.minY + inset - scrollOffset
+            if yInGutter + rect.height >= 0 && yInGutter <= bounds.height {
+                let line = provider((textView.string as NSString).length)
+                if line != lastDrawnLine {
+                    let str = "\(line + 1)"
+                    let size = (str as NSString).size(withAttributes: attrs)
+                    let x = bounds.width - size.width - 9
+                    (str as NSString).draw(at: NSPoint(x: x, y: yInGutter + (rect.height - size.height) / 2),
+                                           withAttributes: attrs)
+                }
+            }
+        }
+    }
+
+    private func drawFixedHeight(attrs: [NSAttributedString.Key: Any]) {
+        let lineHeight = editorFontSize * 1.35
+        let topPadding: CGFloat = 8
         let firstLine = max(1, Int((scrollOffset - topPadding) / lineHeight) + 1)
         let lastLine = min(lineCount, Int((scrollOffset + bounds.height - topPadding) / lineHeight) + 2)
 
@@ -844,12 +949,8 @@ class LineNumberNSView: NSView {
             let y = topPadding + CGFloat(line - 1) * lineHeight - scrollOffset
             let str = "\(line)"
             let size = (str as NSString).size(withAttributes: attrs)
-            let x = bounds.width - size.width - 9  // 8px 우측 패딩 + 1px 보더
+            let x = bounds.width - size.width - 9
             (str as NSString).draw(at: NSPoint(x: x, y: y + (lineHeight - size.height) / 2), withAttributes: attrs)
         }
-
-        // 우측 보더
-        borderColor.setFill()
-        NSRect(x: bounds.width - 1, y: 0, width: 1, height: bounds.height).fill()
     }
 }

@@ -44,31 +44,41 @@ class ScrollSyncManager: ObservableObject {
     // 최근 에디터 사용자 스크롤 시각 — 양방향 동시 동기화를 막기 위해 최근 조작 주체를 우선한다
     private var lastEditorUserScrollTime: CFTimeInterval = 0
 
-    // MARK: - 에디터 스크롤 시 프리뷰 동기화
+    // 에디터 라인(0-based) → UTF-16 문자 오프셋. Coordinator의 lineStarts 캐시를 재사용해
+    // 프리뷰→에디터 역동기화가 매 틱 O(n) 스캔을 하지 않도록 빠른 조회를 주입받는다.
+    var editorLineToOffset: ((Int) -> Int)?
+
+    // MARK: - 에디터 스크롤 시 프리뷰 동기화 (VSCode식 라인 앵커 보간)
 
     /// 프로그램적 에디터 스크롤 구간인지 (스크롤 핸들러의 무거운 작업을 건너뛰는 판단에 사용)
     var isProgrammaticScrollActive: Bool { isProgrammaticEditorScroll }
 
+    /// 매 스크롤 틱 호출되는 경량 훅 — 조작 주체만 기록한다(에코면 무시).
+    /// 실제 프리뷰 스크롤은 scrollViewDidScroll이 계산한 라인을 syncPreviewToEditorLine으로 넘긴다.
     func editorDidScroll() {
         guard isEnabled else { return }
+        if isProgrammaticEditorScroll { return }   // 프리뷰발 프로그램적 스크롤 = 에코
+        lastEditorUserScrollTime = CACurrentMediaTime()
+    }
 
-        // 우리가 syncEditorToPreview에서 만든 스크롤 구간이면 전부 무시
-        if isProgrammaticEditorScroll { return }
+    /// 에디터 최상단 가시 라인(0-based)을 프리뷰에 보간 스크롤로 전달한다.
+    /// scrollViewDidScroll이 이미 빠른 경로로 구한 라인을 넘겨받아 재계산을 피한다.
+    func syncPreviewToEditorLine(_ line: Int) {
+        guard isEnabled, !isProgrammaticEditorScroll,
+              let webView = previewWebView else { return }
 
-        // 여기까지 왔으면 에코가 아닌 실제 에디터 스크롤 → 조작 주체를 에디터로 기록
+        // 60fps 쓰로틀 (직전 커밋의 부드러움 유지 — 틱당 작업량을 고정)
         let now = CACurrentMediaTime()
-        lastEditorUserScrollTime = now
-
-        // 쓰로틀링
         guard now - lastSyncTime >= 0.016 else { return }
         lastSyncTime = now
 
-        syncPreviewToEditor()
+        webView.evaluateJavaScript("if(typeof meScrollToLine==='function')meScrollToLine(\(line));",
+                                   completionHandler: nil)
     }
 
     // MARK: - 프리뷰 스크롤 시 에디터 동기화
 
-    func previewDidScroll(scrollPercent: Double) {
+    func previewDidScroll(sourceLine: Double) {
         guard isEnabled else { return }
 
         let now = CACurrentMediaTime()
@@ -81,7 +91,7 @@ class ScrollSyncManager: ObservableObject {
         // 양방향 동시 동기화는 항상 위험하므로 최근 조작 주체를 우선한다.
         if now - lastEditorUserScrollTime < 0.5 { return }
 
-        syncEditorToPreview(scrollPercent: scrollPercent)
+        syncEditorToLine(sourceLine)
     }
 
     /// 프리뷰 페이지 로드 완료 시점에 호출 — 이후 일정 시간 프리뷰→에디터 동기화를 억제한다.
@@ -89,44 +99,48 @@ class ScrollSyncManager: ObservableObject {
         loadSettleUntil = CACurrentMediaTime() + duration
     }
 
-    // MARK: - 동기화 로직 (단순 퍼센트 기반)
+    // MARK: - 동기화 로직 (라인 앵커 기반)
 
-    /// 프리뷰를 지정 퍼센트로 프로그램적 스크롤한다.
+    /// 프리뷰를 지정 소스 라인으로 프로그램적 스크롤한다(로드 직후 초기 정렬용).
     /// 되돌아오는 scroll 이벤트는 사용자 입력이 없으므로 JS 게이트가 걸러낸다.
-    func scrollPreviewToPercent(_ percent: Double, in webView: WKWebView) {
-        let clamped = min(1.0, max(0.0, percent))
-        let js = """
-        (function() {
-            var h = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight) - window.innerHeight;
-            if (h <= 0) return;
-            var target = h * \(clamped);
-            if (Math.abs(target - window.scrollY) < 0.5) return;
-            window.scrollTo(0, target);
-        })();
-        """
-        webView.evaluateJavaScript(js, completionHandler: nil)
+    func scrollPreviewToLine(_ line: Int, in webView: WKWebView) {
+        webView.evaluateJavaScript("if(typeof meScrollToLine==='function')meScrollToLine(\(line));",
+                                   completionHandler: nil)
     }
 
-    private func syncPreviewToEditor() {
-        guard editorScrollView != nil,
-              let webView = previewWebView else { return }
-
-        scrollPreviewToPercent(getEditorScrollPercent(), in: webView)
-    }
-
-    private func syncEditorToPreview(scrollPercent: Double) {
+    /// 프리뷰가 보고한 소스 라인(소수 가능)을 에디터의 y좌표로 보간해 스크롤한다.
+    /// 라인→오프셋은 주입된 빠른 조회(lineStarts 이진탐색), y좌표는 사전 계산된 레이아웃에서
+    /// boundingRect로 구하므로 틱당 비용이 낮다.
+    private func syncEditorToLine(_ sourceLine: Double) {
         guard let scrollView = editorScrollView,
-              let documentView = scrollView.documentView else { return }
+              let textView = scrollView.documentView as? NSTextView,
+              let layoutManager = textView.layoutManager,
+              let textContainer = textView.textContainer,
+              let lineToOffset = editorLineToOffset else { return }
 
         let clipView = scrollView.contentView
-        let scrollableHeight = documentView.frame.height - clipView.bounds.height
+        let ns = textView.string as NSString
 
+        let floorLine = max(0, Int(floor(sourceLine)))
+        let frac = CGFloat(sourceLine - Double(floorLine))
+
+        let off0 = min(lineToOffset(floorLine), ns.length)
+        let off1 = min(lineToOffset(floorLine + 1), ns.length)
+
+        func y(for offset: Int) -> CGFloat {
+            let glyphRange = layoutManager.glyphRange(forCharacterRange: NSRange(location: offset, length: 0),
+                                                      actualCharacterRange: nil)
+            let rect = layoutManager.boundingRect(forGlyphRange: glyphRange, in: textContainer)
+            return rect.origin.y + textView.textContainerInset.height
+        }
+
+        let y0 = y(for: off0)
+        let y1 = off1 > off0 ? y(for: off1) : y0
+        var target = y0 + frac * (y1 - y0)
+
+        let scrollableHeight = textView.frame.height - clipView.bounds.height
         guard scrollableHeight > 0 else { return }
-
-        // 러버밴드 오버스크롤로 0..1 밖의 퍼센트가 올 수 있다 → 클램프하지 않으면
-        // 에디터가 문서 경계 밖으로 밀려난다.
-        let clamped = min(1.0, max(0.0, scrollPercent))
-        let target = scrollableHeight * CGFloat(clamped)
+        target = min(max(0, target), scrollableHeight)
 
         // 이미 목표 위치면 대입하지 않는다 (불필요한 알림·레이아웃 유발 방지)
         guard abs(clipView.bounds.origin.y - target) >= 1.0 else { return }
@@ -138,38 +152,13 @@ class ScrollSyncManager: ObservableObject {
         DispatchQueue.main.async { self.isProgrammaticEditorScroll = false }
     }
 
-    // 에디터 스크롤 퍼센트 계산 (스크롤 위치 기반)
-    func getEditorScrollPercent() -> Double {
-        guard let scrollView = editorScrollView,
-              let documentView = scrollView.documentView else { return 0 }
-
-        let clipView = scrollView.contentView
-        let scrollableHeight = documentView.frame.height - clipView.bounds.height
-
-        guard scrollableHeight > 0 else { return 0 }
-        return min(1.0, max(0.0, Double(clipView.bounds.origin.y / scrollableHeight)))
-    }
-
-    // 에디터 커서 라인 기반 퍼센트 계산 (편집 시 사용)
-    func getEditorCursorLinePercent() -> Double {
+    /// 에디터 현재 커서 라인(0-based) — 프리뷰 로드 직후 초기 정렬용(1회성이라 O(n) 허용).
+    func getEditorCursorLine() -> Int {
         guard let scrollView = editorScrollView,
               let textView = scrollView.documentView as? NSTextView else { return 0 }
-
-        let text = textView.string
-        let nsText = text as NSString
-        // selectedRange는 UTF-16 오프셋이므로 상한도 UTF-16 길이를 써야 한다.
-        // text.count(Character 수)와 혼용하면 한글 등 멀티바이트 문서에서 엉뚱한 위치를 자른다.
-        let cursorPosition = min(textView.selectedRange().location, nsText.length)
-
-        // 커서 위치까지의 라인 수 계산
-        let textUpToCursor = nsText.substring(to: cursorPosition)
-        let currentLine = textUpToCursor.components(separatedBy: "\n").count
-
-        // 전체 라인 수
-        let totalLines = max(1, text.components(separatedBy: "\n").count)
-
-        guard totalLines > 1 else { return 0 }
-        return min(1.0, Double(currentLine - 1) / Double(totalLines - 1))
+        let ns = textView.string as NSString
+        let loc = min(textView.selectedRange().location, ns.length)
+        return ns.substring(to: loc).components(separatedBy: "\n").count - 1
     }
 
 }

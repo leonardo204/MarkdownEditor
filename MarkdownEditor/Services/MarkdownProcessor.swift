@@ -45,23 +45,39 @@ private struct HTMLVisitor: MarkupVisitor {
         return document.children.map { visit($0) }.joined(separator: "\n")
     }
 
+    // MARK: - 소스 라인 매핑 (VSCode식 스크롤 동기화)
+    // 블록 요소에 원본 마크다운 라인(0-based)을 data-source-line으로 심는다.
+    // 프리뷰 JS가 이 앵커들 사이를 선형 보간해 에디터와 픽셀 정렬한다.
+    private func sourceLineAttr(_ markup: any Markup) -> String {
+        guard let line = markup.range?.lowerBound.line else { return "" }
+        return " data-source-line=\"\(max(0, line - 1))\""
+    }
+
+    // 리스트 아이템 내부의 <p>/<p ...>(속성 포함)를 함께 제거한다.
+    // data-source-line이 붙으면 "<p>" 리터럴 치환이 빗나가므로 정규식으로 연다.
+    private func stripParagraphTags(_ html: String) -> String {
+        var s = html.replacingOccurrences(of: "</p>", with: "")
+        s = s.replacingOccurrences(of: "<p[^>]*>", with: "", options: .regularExpression)
+        return s
+    }
+
     // MARK: - Block Elements
 
     mutating func visitHeading(_ heading: Heading) -> String {
         let level = heading.level
         let content = heading.children.map { visit($0) }.joined()
         let id = generateHeadingId(from: heading.plainText)
-        return "<h\(level) id=\"\(id)\">\(content)</h\(level)>"
+        return "<h\(level) id=\"\(id)\"\(sourceLineAttr(heading))>\(content)</h\(level)>"
     }
 
     mutating func visitParagraph(_ paragraph: Paragraph) -> String {
         let content = paragraph.children.map { visit($0) }.joined()
-        return "<p>\(content)</p>"
+        return "<p\(sourceLineAttr(paragraph))>\(content)</p>"
     }
 
     mutating func visitBlockQuote(_ blockQuote: BlockQuote) -> String {
         let content = blockQuote.children.map { visit($0) }.joined(separator: "\n")
-        return "<blockquote>\(content)</blockquote>"
+        return "<blockquote\(sourceLineAttr(blockQuote))>\(content)</blockquote>"
     }
 
     mutating func visitCodeBlock(_ codeBlock: CodeBlock) -> String {
@@ -70,7 +86,7 @@ private struct HTMLVisitor: MarkupVisitor {
 
         // Mermaid 다이어그램
         if language == "mermaid" {
-            return "<div class=\"mermaid\">\(prepareMermaidSource(code))</div>"
+            return "<div class=\"mermaid\"\(sourceLineAttr(codeBlock))>\(prepareMermaidSource(code))</div>"
         }
 
         // PlantUML 다이어그램
@@ -78,16 +94,16 @@ private struct HTMLVisitor: MarkupVisitor {
             let escaped = code
                 .replacingOccurrences(of: "\"", with: "&quot;")
                 .replacingOccurrences(of: "\n", with: "&#10;")
-            return "<div class=\"plantuml\" data-code=\"\(escaped)\">[PlantUML Diagram]</div>"
+            return "<div class=\"plantuml\"\(sourceLineAttr(codeBlock)) data-code=\"\(escaped)\">[PlantUML Diagram]</div>"
         }
 
         // 일반 코드 블록
         let langClass = language.isEmpty ? "" : " class=\"language-\(language)\""
-        return "<pre><code\(langClass)>\(escapeHTML(code))</code></pre>"
+        return "<pre\(sourceLineAttr(codeBlock))><code\(langClass)>\(escapeHTML(code))</code></pre>"
     }
 
     mutating func visitThematicBreak(_ thematicBreak: ThematicBreak) -> String {
-        return "<hr>"
+        return "<hr\(sourceLineAttr(thematicBreak))>"
     }
 
     mutating func visitHTMLBlock(_ html: HTMLBlock) -> String {
@@ -99,15 +115,16 @@ private struct HTMLVisitor: MarkupVisitor {
     mutating func visitOrderedList(_ orderedList: OrderedList) -> String {
         let items = orderedList.children.map { visit($0) }.joined(separator: "\n")
         let start = orderedList.startIndex
+        let attr = sourceLineAttr(orderedList)
         if start != 1 {
-            return "<ol start=\"\(start)\">\n\(items)\n</ol>"
+            return "<ol start=\"\(start)\"\(attr)>\n\(items)\n</ol>"
         }
-        return "<ol>\n\(items)\n</ol>"
+        return "<ol\(attr)>\n\(items)\n</ol>"
     }
 
     mutating func visitUnorderedList(_ unorderedList: UnorderedList) -> String {
         let items = unorderedList.children.map { visit($0) }.joined(separator: "\n")
-        return "<ul>\n\(items)\n</ul>"
+        return "<ul\(sourceLineAttr(unorderedList))>\n\(items)\n</ul>"
     }
 
     mutating func visitListItem(_ listItem: ListItem) -> String {
@@ -119,10 +136,8 @@ private struct HTMLVisitor: MarkupVisitor {
                 : "<input type=\"checkbox\" disabled>"
             let content = listItem.children.map { visit($0) }.joined()
             // <p> 태그 제거 (리스트 아이템 내에서는 불필요)
-            let cleanContent = content
-                .replacingOccurrences(of: "<p>", with: "")
-                .replacingOccurrences(of: "</p>", with: "")
-            return "<li>\(checkboxHtml) \(cleanContent.trimmingCharacters(in: .whitespacesAndNewlines))</li>"
+            let cleanContent = stripParagraphTags(content)
+            return "<li\(sourceLineAttr(listItem))>\(checkboxHtml) \(cleanContent.trimmingCharacters(in: .whitespacesAndNewlines))</li>"
         }
 
         let content = listItem.children.map { visit($0) }.joined()
@@ -130,20 +145,18 @@ private struct HTMLVisitor: MarkupVisitor {
         let cleanContent: String
         let firstChild: (any Markup)? = listItem.childCount > 0 ? listItem.child(at: 0) : nil
         if listItem.childCount == 1, firstChild is Paragraph {
-            cleanContent = content
-                .replacingOccurrences(of: "<p>", with: "")
-                .replacingOccurrences(of: "</p>", with: "")
+            cleanContent = stripParagraphTags(content)
         } else {
             cleanContent = content
         }
-        return "<li>\(cleanContent.trimmingCharacters(in: .whitespacesAndNewlines))</li>"
+        return "<li\(sourceLineAttr(listItem))>\(cleanContent.trimmingCharacters(in: .whitespacesAndNewlines))</li>"
     }
 
     // MARK: - Tables
 
     mutating func visitTable(_ table: Table) -> String {
         let content = table.children.map { visit($0) }.joined(separator: "\n")
-        return "<table>\n\(content)\n</table>"
+        return "<table\(sourceLineAttr(table))>\n\(content)\n</table>"
     }
 
     mutating func visitTableHead(_ tableHead: Table.Head) -> String {

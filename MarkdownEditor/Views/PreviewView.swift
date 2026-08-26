@@ -268,14 +268,12 @@ struct PreviewView: NSViewRepresentable {
                     }
                 });
 
-                // 프리뷰의 실제 사용자 입력 시각을 추적한다.
-                // 프로그램적 scrollTo와 이미지 리플로우는 사용자 입력을 동반하지 않으므로
-                // 이 시각을 기준으로 걸러내면 rAF 이벤트 병합과 무관하게 정확히 구분된다.
-                var meLastUserInput = 0;
-                ['wheel','mousedown','touchstart','touchmove','keydown'].forEach(function(t){
-                    window.addEventListener(t, function(){ meLastUserInput = Date.now(); },
-                                            { passive: true, capture: true });
-                });
+                // 프로그램적 스크롤 무시창(VSCode 방식).
+                // 에디터→프리뷰 프로그램적 scrollTo 직전에 이 시각을 열어 두면,
+                // 그 에코 scroll 이벤트만 정확히 걸러진다. 그 외 모든 scroll(휠·트랙패드·
+                // 스크롤막대 드래그)은 사용자 스크롤로 처리된다 — DOM 입력 이벤트를
+                // 동반하지 않는 네이티브 스크롤러 드래그도 정상 동기화된다.
+                var meIgnoreScrollUntil = 0;
 
                 // ── VSCode식 소스 라인 앵커 (스크롤 동기화) ──────────────────
                 // 블록 요소의 data-source-line(0-based)을 문서 로드당 1회만 수집해
@@ -325,6 +323,8 @@ struct PreviewView: NSViewRepresentable {
                     var maxY = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight) - window.innerHeight;
                     if (y < 0) y = 0; else if (y > maxY) y = maxY;
                     if (Math.abs(y - window.scrollY) < 0.5) return;
+                    // 프로그램적 스크롤 — 뒤따르는 에코 scroll 이벤트를 무시하도록 창을 연다.
+                    meIgnoreScrollUntil = Date.now() + 200;
                     window.scrollTo(0, y);
                 }
                 // 프리뷰 → 에디터: 현재 최상단 오프셋을 소스 라인(소수)으로 역보간한다.
@@ -355,10 +355,9 @@ struct PreviewView: NSViewRepresentable {
                     if (scrollPending) return;
                     scrollPending = true;
                     requestAnimationFrame(function() {
-                        // 사용자 입력 없이 발생한 스크롤 = 프로그램적 스크롤 또는 리플로우
-                        // → 에디터를 건드리지 않는다.
-                        // (휠을 굴리는 동안 입력 시각이 계속 갱신되므로 관성 구간도 정상 동기화된다)
-                        if (Date.now() - meLastUserInput > 700) { scrollPending = false; return; }
+                        // 프로그램적 스크롤(에디터→프리뷰) 에코면 무시. 그 외의 스크롤은
+                        // 스크롤막대 드래그를 포함해 전부 사용자 스크롤로 처리해 에디터를 따라오게 한다.
+                        if (Date.now() < meIgnoreScrollUntil) { scrollPending = false; return; }
 
                         var line = meLineForScroll();
                         // 변화가 있을 때만 전송

@@ -204,6 +204,7 @@ struct GeneralSettingsView: View {
     @AppStorage("syncScrolling") private var syncScrolling: Bool = true
     @AppStorage("openFilesInNewTab") private var openFilesInNewTab: Bool = true
     @AppStorage("showPreviewPane") private var showPreviewPane: Bool = true
+    @AppStorage("rememberWindowSize") private var rememberWindowSize: Bool = false
     @State private var showingShortcuts = false
 
     var body: some View {
@@ -246,6 +247,21 @@ struct GeneralSettingsView: View {
                 Toggle("", isOn: $showPreviewPane)
                     .labelsHidden()
                 Text("Show preview panel")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Spacer()
+            }
+
+            Divider()
+                .padding(.vertical, 4)
+
+            // 창 크기 기억
+            HStack {
+                Text("Window Size")
+                    .frame(width: 100, alignment: .leading)
+                Toggle("", isOn: $rememberWindowSize)
+                    .labelsHidden()
+                Text("Remember last window size")
                     .font(.caption)
                     .foregroundColor(.secondary)
                 Spacer()

@@ -43,6 +43,11 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate {
 
     // MARK: - 윈도우 설정
 
+    // 창 크기 기억용 UserDefaults 키
+    private static let rememberWindowSizeKey = "rememberWindowSize"
+    private static let savedWindowWidthKey = "savedWindowWidth"
+    private static let savedWindowHeightKey = "savedWindowHeight"
+
     private func setupWindow() {
         guard let window = window else { return }
 
@@ -50,6 +55,18 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate {
         window.title = documentManager.windowTitle
         window.isReleasedWhenClosed = false
         window.minSize = NSSize(width: 600, height: 400)
+
+        // 저장된 창 크기 복원 (설정이 켜져 있고 저장값이 있을 때만 크기만 적용, 위치는 center)
+        let defaults = UserDefaults.standard
+        if defaults.bool(forKey: Self.rememberWindowSizeKey) {
+            let savedW = defaults.double(forKey: Self.savedWindowWidthKey)
+            let savedH = defaults.double(forKey: Self.savedWindowHeightKey)
+            if savedW >= 600, savedH >= 400 {
+                var frame = window.frame
+                frame.size = NSSize(width: savedW, height: savedH)
+                window.setFrame(frame, display: false)
+            }
+        }
 
         // 화면 중앙에 배치
         window.center()
@@ -108,6 +125,16 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate {
 
     func windowDidBecomeKey(_ notification: Notification) {
         DebugLogger.shared.log("DocumentWindowController: windowDidBecomeKey '\(documentManager.windowTitle)'")
+    }
+
+    func windowDidResize(_ notification: Notification) {
+        // 설정이 켜져 있을 때만 현재 창 크기를 기록 (위치는 저장하지 않음)
+        let defaults = UserDefaults.standard
+        guard defaults.bool(forKey: Self.rememberWindowSizeKey),
+              let window = window else { return }
+        let size = window.frame.size
+        defaults.set(Double(size.width), forKey: Self.savedWindowWidthKey)
+        defaults.set(Double(size.height), forKey: Self.savedWindowHeightKey)
     }
 
     // MARK: - 네이티브 탭 지원

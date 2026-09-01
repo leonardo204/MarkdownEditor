@@ -72,8 +72,8 @@ class DirectoryBookmarkManager {
 
         DispatchQueue.main.async {
             let panel = NSOpenPanel()
-            panel.message = "이미지를 표시하려면 문서가 있는 폴더에 대한 접근을 허용해 주세요."
-            panel.prompt = "허용"
+            panel.message = L("panel.directory_access.message")
+            panel.prompt = L("button.allow")
             panel.canChooseFiles = false
             panel.canChooseDirectories = true
             panel.allowsMultipleSelection = false

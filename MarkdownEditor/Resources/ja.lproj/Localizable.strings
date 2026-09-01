@@ -1,0 +1,242 @@
+/* ===== アプリケーションメニュー ===== */
+"menu.app.about" = "MarkdownEditorについて";
+"menu.app.preferences" = "設定…";
+"menu.app.hide" = "MarkdownEditorを隠す";
+"menu.app.hide_others" = "ほかを隠す";
+"menu.app.show_all" = "すべてを表示";
+"menu.app.quit" = "MarkdownEditorを終了";
+
+/* ===== ファイルメニュー ===== */
+"menu.file" = "ファイル";
+"menu.file.new_window" = "新規ウインドウ";
+"menu.file.new_tab" = "新規タブ";
+"menu.file.open" = "開く…";
+"menu.file.open_recent" = "最近使った項目を開く";
+"menu.file.close" = "閉じる";
+"menu.file.save" = "保存";
+"menu.file.save_as" = "別名で保存…";
+"menu.file.export_html" = "HTMLとして書き出す…";
+"menu.file.export_pdf" = "PDFとして書き出す…";
+"menu.file.no_recent" = "最近使った項目なし";
+"menu.file.clear_recent" = "メニューを消去";
+
+/* ===== 編集メニュー ===== */
+"menu.edit" = "編集";
+"menu.edit.undo" = "取り消す";
+"menu.edit.redo" = "やり直す";
+"menu.edit.cut" = "カット";
+"menu.edit.copy" = "コピー";
+"menu.edit.paste" = "ペースト";
+"menu.edit.select_all" = "すべてを選択";
+"menu.edit.find" = "検索…";
+"menu.edit.find_replace" = "検索と置換…";
+"menu.edit.find_next" = "次を検索";
+"menu.edit.find_previous" = "前を検索";
+
+/* ===== フォーマットメニュー ===== */
+"menu.format" = "フォーマット";
+"menu.format.bold" = "ボールド";
+"menu.format.italic" = "イタリック";
+"menu.format.link" = "リンクを挿入";
+"menu.format.inline_code" = "インラインコード";
+"menu.format.strikethrough" = "取り消し線";
+"menu.format.insert_image" = "画像を挿入…";
+
+/* ===== 表示メニュー ===== */
+"menu.view" = "表示";
+"menu.view.toggle_tab_bar" = "タブバーを表示/非表示";
+"menu.view.toggle_outline" = "アウトラインを表示/非表示";
+"menu.view.typewriter_mode" = "タイプライターモード";
+
+/* ===== ウインドウメニュー ===== */
+"menu.window" = "ウインドウ";
+"menu.window.new" = "新規ウインドウ";
+"menu.window.minimize" = "しまう";
+"menu.window.zoom" = "拡大/縮小";
+"menu.window.show_all_tabs" = "すべてのタブを表示";
+"menu.window.merge_all" = "すべてのウインドウを結合";
+"menu.window.bring_all_front" = "すべてを手前に移動";
+"menu.window.go_to_tab" = "タブ %d に移動";
+
+/* ===== ヘルプメニュー ===== */
+"menu.help" = "ヘルプ";
+
+/* ===== 共通ボタン ===== */
+"button.ok" = "OK";
+"button.cancel" = "キャンセル";
+"button.save" = "保存";
+"button.dont_save" = "保存しない";
+"button.reload" = "再読み込み";
+"button.ignore" = "無視";
+"button.allow" = "許可";
+"button.close" = "閉じる";
+
+/* ===== 警告ダイアログ ===== */
+"alert.export_html_failed.title" = "HTMLの書き出しに失敗しました";
+"alert.export_pdf_save_failed.title" = "PDFを保存できませんでした";
+"alert.export_pdf_failed.title" = "PDFを作成できませんでした";
+"alert.file_not_found.title" = "ファイルが見つかりません";
+"alert.file_not_found.message" = "ファイル「%@」は移動または削除されています。";
+"alert.save_changes.title" = "変更内容を保存しますか？";
+"alert.save_changes.title_named" = "「%@」に加えた変更内容を保存しますか？";
+"alert.save_changes.message" = "保存しない場合、変更内容は失われます。";
+"alert.external_change.title" = "ファイルがほかのAppによって変更されました";
+"alert.external_change.message" = "「%@」がこのApp以外で変更されました。再読み込みしますか？";
+"alert.save_required.title" = "先に書類を保存してください";
+"alert.save_required.message" = "画像を挿入するには、先に書類を保存する必要があります。\nOKをクリックすると保存ダイアログが開きます。";
+"panel.image_open.message" = "挿入する画像を選択してください";
+"panel.directory_access.message" = "画像を表示するには、この書類が入っているフォルダへのアクセスを許可してください。";
+
+/* ===== 設定 ===== */
+"settings.tab.premium" = "プレミアム";
+"settings.tab.editor" = "エディタ";
+"settings.tab.preview" = "プレビュー";
+"settings.tab.general" = "一般";
+"settings.tab.about" = "情報";
+"settings.theme" = "テーマ";
+"settings.theme.dark" = "ダーク";
+"settings.theme.light" = "ライト";
+"settings.font" = "フォント";
+"settings.font_size" = "文字サイズ";
+"settings.line_numbers" = "行番号";
+"settings.unit.pt" = "%d pt";
+"settings.unit.px" = "%d px";
+"settings.default_mode" = "デフォルトモード";
+"settings.mode.preview" = "プレビュー";
+"settings.mode.html" = "HTMLソース";
+"settings.auto_reload" = "自動再読み込み";
+"settings.image_size" = "画像サイズ";
+"settings.image.optimized" = "画面に合わせる";
+"settings.image.original" = "オリジナル";
+"settings.max_width" = "最大幅";
+"settings.open_files_in" = "ファイルの開き方";
+"settings.open.new_tab" = "新規タブ";
+"settings.open.new_window" = "新規ウインドウ";
+"settings.scroll_sync" = "スクロール同期";
+"settings.scroll_sync.desc" = "エディタとプレビューを同期";
+"settings.preview_pane" = "プレビューパネル";
+"settings.preview_pane.desc" = "プレビューパネルを表示";
+"settings.window_size" = "ウインドウサイズ";
+"settings.window_size.desc" = "最後のウインドウサイズを記憶";
+"settings.language" = "言語";
+"settings.language.system" = "システム設定に従う";
+"settings.language.restart_note" = "Appを再起動すると適用されます";
+"settings.shortcuts" = "ショートカット";
+"settings.shortcuts.button" = "キーボードショートカットを表示";
+
+/* ===== プレミアム ===== */
+"premium.activated.title" = "プレミアムが有効になりました";
+"premium.activated.desc" = "ありがとうございます。Quick Lookの全画面プレビューを含む\nすべてのプレミアム機能をご利用いただけます。";
+"premium.title" = "Quick Lookプレビュー";
+"premium.desc" = "Finderでマークダウンファイルをスペースバーでプレビューできます。\nMermaid、KaTeX、コードのハイライト表示に対応しています。";
+"premium.purchase" = "購入 — %@";
+"premium.loading" = "製品情報を読み込み中…";
+"premium.not_found" = "製品が見つかりません。";
+"premium.retry" = "再試行";
+"premium.restore" = "購入を復元";
+
+/* ===== ストアエラー ===== */
+"store.error.not_found" = "製品が見つかりません。しばらくしてからもう一度お試しください。";
+"store.error.load_failed" = "製品を読み込めませんでした: %@";
+"store.error.pending" = "購入は承認待ちです。";
+"store.error.purchase_failed" = "購入に失敗しました: %@";
+"store.error.verification_failed" = "トランザクションの検証に失敗しました。";
+
+/* ===== 情報 ===== */
+"about.version" = "バージョン %@ (%@)";
+"about.rights" = "© %@ All rights reserved.";
+
+/* ===== エディタ / プレビュー ===== */
+"header.editor" = "エディタ";
+"header.preview" = "プレビュー";
+"header.theme" = "テーマ";
+"header.auto_reload" = "自動再読み込み";
+"header.show_preview" = "プレビューを表示";
+"header.hide_preview" = "プレビューを隠す";
+"status.words" = "%d 単語";
+"status.chars" = "%d 文字";
+"status.reading_time" = "%d 分";
+"status.reading_time_short" = "1分未満";
+"outline.title" = "アウトライン";
+"outline.empty" = "見出しなし";
+"outline.target.editor" = "エディタ";
+"outline.target.preview" = "プレビュー";
+
+/* ===== ツールバー ===== */
+"toolbar.heading" = "見出し";
+"toolbar.heading.level" = "見出し %d";
+"toolbar.bold" = "ボールド ⌘B";
+"toolbar.italic" = "イタリック ⌘I";
+"toolbar.strikethrough" = "取り消し線";
+"toolbar.highlight" = "ハイライト";
+"toolbar.inline_code" = "インラインコード";
+"toolbar.code_block" = "コードブロック";
+"toolbar.link" = "リンク ⌘K";
+"toolbar.image" = "画像";
+"toolbar.image.from_file" = "ファイルから挿入…";
+"toolbar.image.from_url" = "URLから挿入";
+"toolbar.bullet_list" = "箇条書きリスト";
+"toolbar.numbered_list" = "番号付きリスト";
+"toolbar.task_list" = "タスクリスト";
+"toolbar.blockquote" = "引用";
+"toolbar.horizontal_rule" = "水平線";
+"toolbar.table" = "表";
+"toolbar.diagram" = "ダイアグラム";
+"toolbar.diagram.mermaid" = "Mermaidダイアグラム";
+"toolbar.diagram.plantuml" = "PlantUMLダイアグラム";
+"toolbar.math" = "数式";
+"toolbar.math.inline" = "インライン数式";
+"toolbar.math.block" = "ブロック数式";
+
+/* ===== 検索と置換 ===== */
+"find.target.editor" = "エディタ";
+"find.target.preview" = "プレビュー";
+"find.target.help" = "検索対象（エディタのソース / プレビュー）";
+"find.placeholder" = "検索";
+"find.no_match" = "なし";
+"find.case_sensitive" = "大文字/小文字を区別";
+"find.previous" = "前を検索（⇧⏎）";
+"find.next" = "次を検索（⏎）";
+"find.replace.open" = "置換を表示";
+"find.replace.close" = "置換を隠す";
+"find.replace.placeholder" = "置換";
+"find.replace.button" = "置換";
+"find.replace_all" = "すべて置換";
+"find.recents.title" = "最近の検索";
+"find.recents.item" = "項目";
+"find.recents.none" = "最近の検索なし";
+"find.recents.clear" = "最近の検索を消去";
+
+/* ===== キーボードショートカットウインドウ ===== */
+"shortcuts.title" = "キーボードショートカット";
+"shortcuts.section.file" = "ファイル";
+"shortcuts.section.tabs" = "タブ";
+"shortcuts.section.edit" = "編集";
+"shortcuts.section.format" = "フォーマット";
+"shortcuts.section.view" = "表示";
+"shortcuts.new_document" = "新規書類";
+"shortcuts.new_tab" = "新規タブ";
+"shortcuts.new_window" = "新規ウインドウ";
+"shortcuts.open" = "開く…";
+"shortcuts.close_tab" = "タブを閉じる";
+"shortcuts.save" = "保存";
+"shortcuts.save_as" = "別名で保存…";
+"shortcuts.next_tab" = "次のタブ";
+"shortcuts.previous_tab" = "前のタブ";
+"shortcuts.go_to_tab" = "タブ 1〜9 に移動";
+"shortcuts.undo" = "取り消す";
+"shortcuts.redo" = "やり直す";
+"shortcuts.cut" = "カット";
+"shortcuts.copy" = "コピー";
+"shortcuts.paste" = "ペースト";
+"shortcuts.select_all" = "すべてを選択";
+"shortcuts.bold" = "ボールド";
+"shortcuts.italic" = "イタリック";
+"shortcuts.underline" = "アンダーライン";
+"shortcuts.insert_link" = "リンクを挿入";
+"shortcuts.insert_image" = "ファイルから画像を挿入";
+"shortcuts.toggle_outline" = "アウトラインを表示/非表示";
+"shortcuts.settings" = "設定";
+
+"settings.window.title" = "設定";
+"find.panel.title" = "検索と置換";

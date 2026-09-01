@@ -346,7 +346,7 @@ class FindReplaceManager: ObservableObject {
 
     private func createPanel() {
         let newPanel = FindReplacePanel(manager: self)
-        newPanel.title = "찾기 및 바꾸기"
+        newPanel.title = L("find.panel.title")
         newPanel.isFloatingPanel = true
         newPanel.becomesKeyOnlyIfNeeded = false
         newPanel.level = .floating
@@ -436,12 +436,12 @@ struct FindReplaceBar: View {
             // 검색 대상 선택 (프리뷰가 표시 중일 때만)
             if manager.isPreviewAvailable {
                 Picker("", selection: $manager.searchTarget) {
-                    Text("에디터").tag(FindReplaceManager.SearchTarget.editor)
-                    Text("미리보기").tag(FindReplaceManager.SearchTarget.preview)
+                    Text("find.target.editor").tag(FindReplaceManager.SearchTarget.editor)
+                    Text("find.target.preview").tag(FindReplaceManager.SearchTarget.preview)
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
-                .help("검색 대상 (에디터 소스 / 미리보기)")
+                .help("find.target.help")
             }
 
             // 찾기 행
@@ -449,7 +449,7 @@ struct FindReplaceBar: View {
                 // 네이티브 검색 필드 (돋보기 아이콘 + 최근 검색 히스토리 내장)
                 RecentSearchField(
                     text: $manager.searchText,
-                    placeholder: "찾기",
+                    placeholder: L("find.placeholder"),
                     onSetup: { field in manager.searchField = field }
                 )
                 .frame(minWidth: 180, maxWidth: .infinity)
@@ -461,7 +461,7 @@ struct FindReplaceBar: View {
                         .foregroundColor(.secondary)
                         .frame(minWidth: 44, alignment: .center)
                 } else if !manager.searchText.isEmpty {
-                    Text("없음")
+                    Text("find.no_match")
                         .font(.system(size: 11))
                         .foregroundColor(.red.opacity(0.8))
                         .frame(minWidth: 44, alignment: .center)
@@ -476,14 +476,14 @@ struct FindReplaceBar: View {
                         .cornerRadius(3)
                 }
                 .buttonStyle(.plain)
-                .help("대소문자 구분")
+                .help("find.case_sensitive")
 
                 Button(action: { manager.findPrevious() }) {
                     Image(systemName: "chevron.up")
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
-                .help("이전 찾기 (⇧⏎)")
+                .help("find.previous")
                 .disabled(manager.totalMatches == 0)
 
                 Button(action: { manager.findNext() }) {
@@ -491,7 +491,7 @@ struct FindReplaceBar: View {
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
-                .help("다음 찾기 (⏎)")
+                .help("find.next")
                 .disabled(manager.totalMatches == 0)
 
                 // 바꾸기 토글 (에디터 검색 시에만 — 프리뷰는 렌더 결과라 바꾸기 불가)
@@ -506,7 +506,7 @@ struct FindReplaceBar: View {
                         Image(systemName: manager.showReplace ? "chevron.up.chevron.down" : "arrow.triangle.swap")
                     }
                     .buttonStyle(.plain)
-                    .help(manager.showReplace ? "바꾸기 닫기" : "바꾸기 열기")
+                    .help(manager.showReplace ? "find.replace.close" : "find.replace.open")
                 }
             }
 
@@ -517,18 +517,18 @@ struct FindReplaceBar: View {
                         .foregroundColor(.secondary)
                         .frame(width: 16)
 
-                    TextField("바꾸기", text: $manager.replaceText)
+                    TextField("find.replace.placeholder", text: $manager.replaceText)
                         .textFieldStyle(.roundedBorder)
                         .frame(minWidth: 180)
 
-                    Button("바꾸기") {
+                    Button("find.replace.button") {
                         manager.replaceCurrent()
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
                     .disabled(manager.totalMatches == 0)
 
-                    Button("모두 바꾸기") {
+                    Button("find.replace_all") {
                         manager.replaceAll()
                     }
                     .buttonStyle(.bordered)
@@ -600,21 +600,21 @@ struct RecentSearchField: NSViewRepresentable {
         static func makeSearchMenu() -> NSMenu {
             let menu = NSMenu(title: "Recents")
 
-            let recentsTitle = NSMenuItem(title: "최근 검색", action: nil, keyEquivalent: "")
+            let recentsTitle = NSMenuItem(title: L("find.recents.title"), action: nil, keyEquivalent: "")
             recentsTitle.tag = 1000 // NSSearchFieldRecentsTitleMenuItemTag
             menu.addItem(recentsTitle)
 
-            let recentsItem = NSMenuItem(title: "항목", action: nil, keyEquivalent: "")
+            let recentsItem = NSMenuItem(title: L("find.recents.item"), action: nil, keyEquivalent: "")
             recentsItem.tag = 1001 // NSSearchFieldRecentsMenuItemTag
             menu.addItem(recentsItem)
 
-            let noRecents = NSMenuItem(title: "최근 검색 없음", action: nil, keyEquivalent: "")
+            let noRecents = NSMenuItem(title: L("find.recents.none"), action: nil, keyEquivalent: "")
             noRecents.tag = 1003 // NSSearchFieldNoRecentsMenuItemTag
             menu.addItem(noRecents)
 
             menu.addItem(NSMenuItem.separator())
 
-            let clear = NSMenuItem(title: "최근 검색 지우기", action: nil, keyEquivalent: "")
+            let clear = NSMenuItem(title: L("find.recents.clear"), action: nil, keyEquivalent: "")
             clear.tag = 1002 // NSSearchFieldClearRecentsMenuItemTag
             menu.addItem(clear)
 

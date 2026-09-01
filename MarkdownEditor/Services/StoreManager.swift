@@ -44,14 +44,14 @@ class StoreManager: ObservableObject {
             let fetchedProducts = try await Product.products(for: [Self.quickLookPremiumID])
             products = fetchedProducts
             if fetchedProducts.isEmpty {
-                errorMessage = "상품을 찾을 수 없습니다. 잠시 후 다시 시도해주세요."
+                errorMessage = L("store.error.not_found")
                 print("[StoreManager] No products found for ID: \(Self.quickLookPremiumID)")
             } else {
                 errorMessage = nil
                 print("[StoreManager] Loaded \(fetchedProducts.count) product(s): \(fetchedProducts.map { $0.id })")
             }
         } catch {
-            errorMessage = "상품을 불러올 수 없습니다: \(error.localizedDescription)"
+            errorMessage = L("store.error.load_failed", error.localizedDescription)
             print("[StoreManager] Failed to load products: \(error)")
         }
 
@@ -90,12 +90,12 @@ class StoreManager: ObservableObject {
             case .userCancelled:
                 break
             case .pending:
-                errorMessage = "구매가 승인 대기 중입니다."
+                errorMessage = L("store.error.pending")
             @unknown default:
                 break
             }
         } catch {
-            errorMessage = "구매 실패: \(error.localizedDescription)"
+            errorMessage = L("store.error.purchase_failed", error.localizedDescription)
         }
 
         purchaseInProgress = false
@@ -173,7 +173,7 @@ enum StoreError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .failedVerification:
-            return "거래 검증에 실패했습니다."
+            return L("store.error.verification_failed")
         }
     }
 }

@@ -145,8 +145,8 @@ enum EditorTheme: String, CaseIterable {
 
     var displayName: String {
         switch self {
-        case .dark: return "Dark"
-        case .light: return "Light"
+        case .dark: return L("settings.theme.dark")
+        case .light: return L("settings.theme.light")
         }
     }
 
@@ -266,8 +266,8 @@ enum OutlineScrollTarget: String, CaseIterable {
 
     var displayName: String {
         switch self {
-        case .editor: return "Editor"
-        case .preview: return "Preview"
+        case .editor: return L("outline.target.editor")
+        case .preview: return L("outline.target.preview")
         }
     }
 }
@@ -279,8 +279,8 @@ enum PreviewTheme: String, CaseIterable {
 
     var displayName: String {
         switch self {
-        case .dark: return "Dark"
-        case .light: return "Light"
+        case .dark: return L("settings.theme.dark")
+        case .light: return L("settings.theme.light")
         }
     }
 

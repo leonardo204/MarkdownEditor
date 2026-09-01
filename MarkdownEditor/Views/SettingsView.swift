@@ -9,30 +9,30 @@ struct SettingsView: View {
         TabView {
             PremiumSettingsView()
                 .tabItem {
-                    Label("Premium", systemImage: "star.fill")
+                    Label("settings.tab.premium", systemImage: "star.fill")
                 }
 
             EditorSettingsView()
                 .tabItem {
-                    Label("Editor", systemImage: "pencil")
+                    Label("settings.tab.editor", systemImage: "pencil")
                 }
 
             PreviewSettingsView()
                 .tabItem {
-                    Label("Preview", systemImage: "eye")
+                    Label("settings.tab.preview", systemImage: "eye")
                 }
 
             GeneralSettingsView()
                 .tabItem {
-                    Label("General", systemImage: "gear")
+                    Label("settings.tab.general", systemImage: "gear")
                 }
 
             AboutSettingsView()
                 .tabItem {
-                    Label("About", systemImage: "info.circle")
+                    Label("settings.tab.about", systemImage: "info.circle")
                 }
         }
-        .frame(width: 420, height: 340)
+        .frame(width: 460, height: 400)
     }
 }
 
@@ -58,11 +58,11 @@ struct EditorSettingsView: View {
         VStack(alignment: .leading, spacing: 12) {
             // 테마 선택
             HStack {
-                Text("Theme")
+                Text("settings.theme")
                     .frame(width: 100, alignment: .leading)
                 Picker("", selection: $editorTheme) {
-                    Text("Dark").tag("dark")
-                    Text("Light").tag("light")
+                    Text("settings.theme.dark").tag("dark")
+                    Text("settings.theme.light").tag("light")
                 }
                 .labelsHidden()
                 .frame(width: 120)
@@ -70,7 +70,7 @@ struct EditorSettingsView: View {
 
             // 폰트 선택
             HStack {
-                Text("Font")
+                Text("settings.font")
                     .frame(width: 100, alignment: .leading)
                 Picker("", selection: $fontName) {
                     ForEach(availableFonts, id: \.self) { font in
@@ -83,18 +83,18 @@ struct EditorSettingsView: View {
 
             // 폰트 크기
             HStack {
-                Text("Font Size")
+                Text("settings.font_size")
                     .frame(width: 100, alignment: .leading)
                 Slider(value: $fontSize, in: 10...24, step: 1)
                     .frame(width: 140)
-                Text("\(Int(fontSize)) pt")
+                Text(L("settings.unit.pt", Int(fontSize)))
                     .foregroundColor(.secondary)
                     .frame(width: 45, alignment: .trailing)
             }
 
             // 라인 번호 표시
             HStack {
-                Text("Line Numbers")
+                Text("settings.line_numbers")
                     .frame(width: 100, alignment: .leading)
                 Toggle("", isOn: $showLineNumbers)
                     .labelsHidden()
@@ -133,11 +133,11 @@ struct PreviewSettingsView: View {
         VStack(alignment: .leading, spacing: 12) {
             // 테마 선택
             HStack {
-                Text("Theme")
+                Text("settings.theme")
                     .frame(width: 100, alignment: .leading)
                 Picker("", selection: $previewTheme) {
-                    Text("Dark").tag("dark")
-                    Text("Light").tag("light")
+                    Text("settings.theme.dark").tag("dark")
+                    Text("settings.theme.light").tag("light")
                 }
                 .labelsHidden()
                 .frame(width: 120)
@@ -145,11 +145,11 @@ struct PreviewSettingsView: View {
 
             // 기본 모드
             HStack {
-                Text("Default Mode")
+                Text("settings.default_mode")
                     .frame(width: 100, alignment: .leading)
                 Picker("", selection: $previewMode) {
-                    Text("Preview").tag("preview")
-                    Text("HTML Source").tag("html")
+                    Text("settings.mode.preview").tag("preview")
+                    Text("settings.mode.html").tag("html")
                 }
                 .labelsHidden()
                 .frame(width: 120)
@@ -157,7 +157,7 @@ struct PreviewSettingsView: View {
 
             // 자동 새로고침
             HStack {
-                Text("Auto Reload")
+                Text("settings.auto_reload")
                     .frame(width: 100, alignment: .leading)
                 Toggle("", isOn: $autoReloadPreview)
                     .labelsHidden()
@@ -166,11 +166,11 @@ struct PreviewSettingsView: View {
 
             // 이미지 크기
             HStack {
-                Text("Image Size")
+                Text("settings.image_size")
                     .frame(width: 100, alignment: .leading)
                 Picker("", selection: $imageRenderMode) {
-                    Text("Optimized").tag("optimized")
-                    Text("Original").tag("original")
+                    Text("settings.image.optimized").tag("optimized")
+                    Text("settings.image.original").tag("original")
                 }
                 .labelsHidden()
                 .frame(width: 120)
@@ -179,11 +179,11 @@ struct PreviewSettingsView: View {
             // 이미지 최대 너비 (Optimized 모드일 때)
             if imageRenderMode == "optimized" {
                 HStack {
-                    Text("Max Width")
+                    Text("settings.max_width")
                         .frame(width: 100, alignment: .leading)
                     Slider(value: $imageMaxWidth, in: 200...maxSliderWidth)
                         .frame(width: 140)
-                    Text("\(Int(imageMaxWidth)) px")
+                    Text(L("settings.unit.px", Int(imageMaxWidth)))
                         .foregroundColor(.secondary)
                         .frame(width: 55, alignment: .trailing)
                 }
@@ -201,6 +201,7 @@ struct PreviewSettingsView: View {
 
 // MARK: - 일반 설정
 struct GeneralSettingsView: View {
+    @AppStorage(AppLanguage.storageKey) private var appLanguage: String = AppLanguage.system.rawValue
     @AppStorage("syncScrolling") private var syncScrolling: Bool = true
     @AppStorage("openFilesInNewTab") private var openFilesInNewTab: Bool = true
     @AppStorage("showPreviewPane") private var showPreviewPane: Bool = true
@@ -209,13 +210,36 @@ struct GeneralSettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
+            // 표시 언어
+            HStack(alignment: .firstTextBaseline) {
+                Text("settings.language")
+                    .frame(width: 100, alignment: .leading)
+                Picker("", selection: $appLanguage) {
+                    ForEach(AppLanguage.allCases) { language in
+                        Text(language.displayName).tag(language.rawValue)
+                    }
+                }
+                .labelsHidden()
+                .frame(width: 160)
+                .onChange(of: appLanguage) { newValue in
+                    (AppLanguage(rawValue: newValue) ?? .system).apply()
+                }
+                Text("settings.language.restart_note")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Spacer()
+            }
+
+            Divider()
+                .padding(.vertical, 4)
+
             // 탭 설정
             HStack {
-                Text("Open Files In")
+                Text("settings.open_files_in")
                     .frame(width: 100, alignment: .leading)
                 Picker("", selection: $openFilesInNewTab) {
-                    Text("New Tab").tag(true)
-                    Text("New Window").tag(false)
+                    Text("settings.open.new_tab").tag(true)
+                    Text("settings.open.new_window").tag(false)
                 }
                 .pickerStyle(.radioGroup)
                 .horizontalRadioGroupLayout()
@@ -227,11 +251,11 @@ struct GeneralSettingsView: View {
 
             // 스크롤 동기화
             HStack {
-                Text("Scroll Sync")
+                Text("settings.scroll_sync")
                     .frame(width: 100, alignment: .leading)
                 Toggle("", isOn: $syncScrolling)
                     .labelsHidden()
-                Text("Sync editor and preview")
+                Text("settings.scroll_sync.desc")
                     .font(.caption)
                     .foregroundColor(.secondary)
                 Spacer()
@@ -242,11 +266,11 @@ struct GeneralSettingsView: View {
 
             // 미리보기 패널 표시
             HStack {
-                Text("Preview Pane")
+                Text("settings.preview_pane")
                     .frame(width: 100, alignment: .leading)
                 Toggle("", isOn: $showPreviewPane)
                     .labelsHidden()
-                Text("Show preview panel")
+                Text("settings.preview_pane.desc")
                     .font(.caption)
                     .foregroundColor(.secondary)
                 Spacer()
@@ -257,11 +281,11 @@ struct GeneralSettingsView: View {
 
             // 창 크기 기억
             HStack {
-                Text("Window Size")
+                Text("settings.window_size")
                     .frame(width: 100, alignment: .leading)
                 Toggle("", isOn: $rememberWindowSize)
                     .labelsHidden()
-                Text("Remember last window size")
+                Text("settings.window_size.desc")
                     .font(.caption)
                     .foregroundColor(.secondary)
                 Spacer()
@@ -272,13 +296,13 @@ struct GeneralSettingsView: View {
 
             // 단축키 안내
             HStack {
-                Text("Shortcuts")
+                Text("settings.shortcuts")
                     .frame(width: 100, alignment: .leading)
                 Button(action: { showingShortcuts = true }) {
                     HStack(spacing: 6) {
                         Image(systemName: "keyboard")
                             .font(.system(size: 11))
-                        Text("View Keyboard Shortcuts")
+                        Text("settings.shortcuts.button")
                             .font(.system(size: 12))
                     }
                     .foregroundColor(.accentColor)
@@ -335,7 +359,7 @@ struct PremiumSettingsView: View {
                     }
                     .frame(height: 60)
 
-                    Text("Premium Activated!")
+                    Text("premium.activated.title")
                         .font(.headline)
                         .foregroundStyle(
                             LinearGradient(
@@ -345,14 +369,9 @@ struct PremiumSettingsView: View {
                             )
                         )
 
-                    Text("감사합니다! Quick Look 풀 미리보기를 포함한\n모든 프리미엄 기능을 사용할 수 있습니다.")
+                    Text("premium.activated.desc")
                         .font(.caption)
                         .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-
-                    Text("Thank you! All premium features including\nQuick Look full preview are now available.")
-                        .font(.caption2)
-                        .foregroundColor(.secondary.opacity(0.7))
                         .multilineTextAlignment(.center)
                 }
                 .onAppear { showConfetti = true }
@@ -363,18 +382,12 @@ struct PremiumSettingsView: View {
                         .font(.system(size: 32))
                         .foregroundColor(.accentColor)
 
-                    Text("Quick Look Preview")
+                    Text("premium.title")
                         .font(.headline)
 
-                    Text("Finder에서 마크다운 파일을 스페이스바로 미리보기할 수 있습니다.\nMermaid, KaTeX, 코드 하이라이팅을 지원합니다.")
+                    Text("premium.desc")
                         .font(.caption)
                         .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                        .lineLimit(3)
-
-                    Text("Preview markdown files in Finder with spacebar.\nSupports Mermaid, KaTeX, and code highlighting.")
-                        .font(.caption2)
-                        .foregroundColor(.secondary.opacity(0.7))
                         .multilineTextAlignment(.center)
                         .lineLimit(3)
 
@@ -388,7 +401,7 @@ struct PremiumSettingsView: View {
                                         .controlSize(.small)
                                         .padding(.trailing, 4)
                                 }
-                                Text("Purchase — \(product.displayPrice)")
+                                Text(L("premium.purchase", product.displayPrice))
                             }
                             .frame(minWidth: 160)
                         }
@@ -397,22 +410,22 @@ struct PremiumSettingsView: View {
                     } else if storeManager.isLoadingProducts {
                         ProgressView()
                             .controlSize(.small)
-                        Text("상품 정보를 불러오는 중...")
+                        Text("premium.loading")
                             .font(.caption2)
                             .foregroundColor(.secondary)
                     } else {
-                        Text(storeManager.errorMessage ?? "상품을 찾을 수 없습니다.")
+                        Text(storeManager.errorMessage ?? L("premium.not_found"))
                             .font(.caption2)
                             .foregroundColor(.red)
 
-                        Button("다시 시도") {
+                        Button("premium.retry") {
                             Task { await storeManager.loadProducts() }
                         }
                         .buttonStyle(.link)
                         .font(.caption)
                     }
 
-                    Button("Restore Purchase") {
+                    Button("premium.restore") {
                         Task { await storeManager.restorePurchases() }
                     }
                     .buttonStyle(.link)
@@ -454,7 +467,7 @@ struct AboutSettingsView: View {
                 .fontWeight(.semibold)
 
             // 버전 정보
-            Text("Version \(appVersion) (\(buildNumber))")
+            Text(L("about.version", appVersion, buildNumber))
                 .font(.caption)
                 .foregroundColor(.secondary)
 
@@ -463,7 +476,7 @@ struct AboutSettingsView: View {
 
             // 저작 정보
             VStack(spacing: 4) {
-                Text("© \(String(Calendar.current.component(.year, from: Date()))) All rights reserved.")
+                Text(L("about.rights", String(Calendar.current.component(.year, from: Date()))))
                     .font(.caption)
                     .foregroundColor(.secondary)
 
@@ -484,7 +497,7 @@ struct KeyboardShortcutsView: View {
         VStack(spacing: 0) {
             // 헤더
             HStack {
-                Text("Keyboard Shortcuts")
+                Text("shortcuts.title")
                     .font(.headline)
                 Spacer()
                 Button(action: { dismiss() }) {
@@ -504,46 +517,46 @@ struct KeyboardShortcutsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     // 파일 관련
-                    ShortcutSection(title: "File", icon: "doc", shortcuts: [
-                        ShortcutItem(keys: "⌘ N", description: "New Document"),
-                        ShortcutItem(keys: "⌘ T", description: "New Tab"),
-                        ShortcutItem(keys: "⇧⌘ N", description: "New Window"),
-                        ShortcutItem(keys: "⌘ O", description: "Open..."),
-                        ShortcutItem(keys: "⌘ W", description: "Close Tab"),
-                        ShortcutItem(keys: "⌘ S", description: "Save"),
-                        ShortcutItem(keys: "⇧⌘ S", description: "Save As...")
+                    ShortcutSection(title: "shortcuts.section.file", icon: "doc", shortcuts: [
+                        ShortcutItem(keys: "⌘ N", description: "shortcuts.new_document"),
+                        ShortcutItem(keys: "⌘ T", description: "shortcuts.new_tab"),
+                        ShortcutItem(keys: "⇧⌘ N", description: "shortcuts.new_window"),
+                        ShortcutItem(keys: "⌘ O", description: "shortcuts.open"),
+                        ShortcutItem(keys: "⌘ W", description: "shortcuts.close_tab"),
+                        ShortcutItem(keys: "⌘ S", description: "shortcuts.save"),
+                        ShortcutItem(keys: "⇧⌘ S", description: "shortcuts.save_as")
                     ])
 
                     // 탭 관련
-                    ShortcutSection(title: "Tabs", icon: "rectangle.stack", shortcuts: [
-                        ShortcutItem(keys: "⇧⌘ ]", description: "Next Tab"),
-                        ShortcutItem(keys: "⇧⌘ [", description: "Previous Tab"),
-                        ShortcutItem(keys: "⌘ 1-9", description: "Go to Tab 1-9")
+                    ShortcutSection(title: "shortcuts.section.tabs", icon: "rectangle.stack", shortcuts: [
+                        ShortcutItem(keys: "⇧⌘ ]", description: "shortcuts.next_tab"),
+                        ShortcutItem(keys: "⇧⌘ [", description: "shortcuts.previous_tab"),
+                        ShortcutItem(keys: "⌘ 1-9", description: "shortcuts.go_to_tab")
                     ])
 
                     // 편집 관련
-                    ShortcutSection(title: "Edit", icon: "pencil", shortcuts: [
-                        ShortcutItem(keys: "⌘ Z", description: "Undo"),
-                        ShortcutItem(keys: "⇧⌘ Z", description: "Redo"),
-                        ShortcutItem(keys: "⌘ X", description: "Cut"),
-                        ShortcutItem(keys: "⌘ C", description: "Copy"),
-                        ShortcutItem(keys: "⌘ V", description: "Paste"),
-                        ShortcutItem(keys: "⌘ A", description: "Select All")
+                    ShortcutSection(title: "shortcuts.section.edit", icon: "pencil", shortcuts: [
+                        ShortcutItem(keys: "⌘ Z", description: "shortcuts.undo"),
+                        ShortcutItem(keys: "⇧⌘ Z", description: "shortcuts.redo"),
+                        ShortcutItem(keys: "⌘ X", description: "shortcuts.cut"),
+                        ShortcutItem(keys: "⌘ C", description: "shortcuts.copy"),
+                        ShortcutItem(keys: "⌘ V", description: "shortcuts.paste"),
+                        ShortcutItem(keys: "⌘ A", description: "shortcuts.select_all")
                     ])
 
                     // 서식 관련
-                    ShortcutSection(title: "Format", icon: "textformat", shortcuts: [
-                        ShortcutItem(keys: "⌘ B", description: "Bold"),
-                        ShortcutItem(keys: "⌘ I", description: "Italic"),
-                        ShortcutItem(keys: "⌘ U", description: "Underline"),
-                        ShortcutItem(keys: "⌘ K", description: "Insert Link"),
-                        ShortcutItem(keys: "⌃ O", description: "Insert Image from File")
+                    ShortcutSection(title: "shortcuts.section.format", icon: "textformat", shortcuts: [
+                        ShortcutItem(keys: "⌘ B", description: "shortcuts.bold"),
+                        ShortcutItem(keys: "⌘ I", description: "shortcuts.italic"),
+                        ShortcutItem(keys: "⌘ U", description: "shortcuts.underline"),
+                        ShortcutItem(keys: "⌘ K", description: "shortcuts.insert_link"),
+                        ShortcutItem(keys: "⌃ O", description: "shortcuts.insert_image")
                     ])
 
                     // 보기 관련
-                    ShortcutSection(title: "View", icon: "eye", shortcuts: [
-                        ShortcutItem(keys: "⇧⌘ O", description: "Toggle Outline"),
-                        ShortcutItem(keys: "⌘ ,", description: "Settings")
+                    ShortcutSection(title: "shortcuts.section.view", icon: "eye", shortcuts: [
+                        ShortcutItem(keys: "⇧⌘ O", description: "shortcuts.toggle_outline"),
+                        ShortcutItem(keys: "⌘ ,", description: "shortcuts.settings")
                     ])
                 }
                 .padding(24)
@@ -554,7 +567,7 @@ struct KeyboardShortcutsView: View {
             // 푸터
             HStack {
                 Spacer()
-                Button("Close") {
+                Button("button.close") {
                     dismiss()
                 }
                 .keyboardShortcut(.defaultAction)

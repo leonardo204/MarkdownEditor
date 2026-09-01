@@ -30,6 +30,7 @@ A Markdown editor for macOS with live preview and scroll synchronization.
 - **Images**: Drag and drop, paste, or pick a file (Ctrl+O).
 - **Themes**: Choose light or dark for the editor and the preview separately.
 - **Remember window size**: Reopens at the size you last set (turn it on in Settings > General).
+- **Four languages**: Korean, English, Japanese and Simplified Chinese — pick one in Settings > General (follows the system language by default).
 - **Quick Look preview** (in-app purchase): Press space in Finder to read Markdown files as rendered pages.
 
 ## Screenshot

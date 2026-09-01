@@ -1,0 +1,242 @@
+/* ===== Application menu ===== */
+"menu.app.about" = "About MarkdownEditor";
+"menu.app.preferences" = "Settings…";
+"menu.app.hide" = "Hide MarkdownEditor";
+"menu.app.hide_others" = "Hide Others";
+"menu.app.show_all" = "Show All";
+"menu.app.quit" = "Quit MarkdownEditor";
+
+/* ===== File menu ===== */
+"menu.file" = "File";
+"menu.file.new_window" = "New Window";
+"menu.file.new_tab" = "New Tab";
+"menu.file.open" = "Open…";
+"menu.file.open_recent" = "Open Recent";
+"menu.file.close" = "Close";
+"menu.file.save" = "Save";
+"menu.file.save_as" = "Save As…";
+"menu.file.export_html" = "Export as HTML…";
+"menu.file.export_pdf" = "Export as PDF…";
+"menu.file.no_recent" = "No Recent Files";
+"menu.file.clear_recent" = "Clear Menu";
+
+/* ===== Edit menu ===== */
+"menu.edit" = "Edit";
+"menu.edit.undo" = "Undo";
+"menu.edit.redo" = "Redo";
+"menu.edit.cut" = "Cut";
+"menu.edit.copy" = "Copy";
+"menu.edit.paste" = "Paste";
+"menu.edit.select_all" = "Select All";
+"menu.edit.find" = "Find…";
+"menu.edit.find_replace" = "Find and Replace…";
+"menu.edit.find_next" = "Find Next";
+"menu.edit.find_previous" = "Find Previous";
+
+/* ===== Format menu ===== */
+"menu.format" = "Format";
+"menu.format.bold" = "Bold";
+"menu.format.italic" = "Italic";
+"menu.format.link" = "Insert Link";
+"menu.format.inline_code" = "Inline Code";
+"menu.format.strikethrough" = "Strikethrough";
+"menu.format.insert_image" = "Insert Image…";
+
+/* ===== View menu ===== */
+"menu.view" = "View";
+"menu.view.toggle_tab_bar" = "Show/Hide Tab Bar";
+"menu.view.toggle_outline" = "Show/Hide Outline";
+"menu.view.typewriter_mode" = "Typewriter Mode";
+
+/* ===== Window menu ===== */
+"menu.window" = "Window";
+"menu.window.new" = "New Window";
+"menu.window.minimize" = "Minimize";
+"menu.window.zoom" = "Zoom";
+"menu.window.show_all_tabs" = "Show All Tabs";
+"menu.window.merge_all" = "Merge All Windows";
+"menu.window.bring_all_front" = "Bring All to Front";
+"menu.window.go_to_tab" = "Go to Tab %d";
+
+/* ===== Help menu ===== */
+"menu.help" = "Help";
+
+/* ===== Common buttons ===== */
+"button.ok" = "OK";
+"button.cancel" = "Cancel";
+"button.save" = "Save";
+"button.dont_save" = "Don't Save";
+"button.reload" = "Reload";
+"button.ignore" = "Ignore";
+"button.allow" = "Allow";
+"button.close" = "Close";
+
+/* ===== Alerts ===== */
+"alert.export_html_failed.title" = "HTML export failed";
+"alert.export_pdf_save_failed.title" = "Could not save the PDF";
+"alert.export_pdf_failed.title" = "Could not create the PDF";
+"alert.file_not_found.title" = "File not found";
+"alert.file_not_found.message" = "The file “%@” has been moved or deleted.";
+"alert.save_changes.title" = "Do you want to save your changes?";
+"alert.save_changes.title_named" = "Do you want to save the changes made to “%@”?";
+"alert.save_changes.message" = "Your changes will be lost if you don't save them.";
+"alert.external_change.title" = "The file was changed by another app";
+"alert.external_change.message" = "“%@” was modified outside this app. Do you want to reload it?";
+"alert.save_required.title" = "Save the document first";
+"alert.save_required.message" = "The document must be saved before you can insert an image.\nClick OK to open the save dialog.";
+"panel.image_open.message" = "Choose the images to insert";
+"panel.directory_access.message" = "To display images, allow access to the folder that contains this document.";
+
+/* ===== Settings ===== */
+"settings.tab.premium" = "Premium";
+"settings.tab.editor" = "Editor";
+"settings.tab.preview" = "Preview";
+"settings.tab.general" = "General";
+"settings.tab.about" = "About";
+"settings.theme" = "Theme";
+"settings.theme.dark" = "Dark";
+"settings.theme.light" = "Light";
+"settings.font" = "Font";
+"settings.font_size" = "Font Size";
+"settings.line_numbers" = "Line Numbers";
+"settings.unit.pt" = "%d pt";
+"settings.unit.px" = "%d px";
+"settings.default_mode" = "Default Mode";
+"settings.mode.preview" = "Preview";
+"settings.mode.html" = "HTML Source";
+"settings.auto_reload" = "Auto Reload";
+"settings.image_size" = "Image Size";
+"settings.image.optimized" = "Optimized";
+"settings.image.original" = "Original";
+"settings.max_width" = "Max Width";
+"settings.open_files_in" = "Open Files In";
+"settings.open.new_tab" = "New Tab";
+"settings.open.new_window" = "New Window";
+"settings.scroll_sync" = "Scroll Sync";
+"settings.scroll_sync.desc" = "Sync editor and preview";
+"settings.preview_pane" = "Preview Pane";
+"settings.preview_pane.desc" = "Show preview panel";
+"settings.window_size" = "Window Size";
+"settings.window_size.desc" = "Remember last window size";
+"settings.language" = "Language";
+"settings.language.system" = "System";
+"settings.language.restart_note" = "Restart the app to apply";
+"settings.shortcuts" = "Shortcuts";
+"settings.shortcuts.button" = "View Keyboard Shortcuts";
+
+/* ===== Premium ===== */
+"premium.activated.title" = "Premium Activated!";
+"premium.activated.desc" = "Thank you! All premium features including\nQuick Look full preview are now available.";
+"premium.title" = "Quick Look Preview";
+"premium.desc" = "Preview markdown files in Finder with the space bar.\nSupports Mermaid, KaTeX, and code highlighting.";
+"premium.purchase" = "Purchase — %@";
+"premium.loading" = "Loading product information…";
+"premium.not_found" = "Product not found.";
+"premium.retry" = "Try Again";
+"premium.restore" = "Restore Purchase";
+
+/* ===== Store errors ===== */
+"store.error.not_found" = "Product not found. Please try again in a moment.";
+"store.error.load_failed" = "Could not load the product: %@";
+"store.error.pending" = "The purchase is awaiting approval.";
+"store.error.purchase_failed" = "Purchase failed: %@";
+"store.error.verification_failed" = "Transaction verification failed.";
+
+/* ===== About ===== */
+"about.version" = "Version %@ (%@)";
+"about.rights" = "© %@ All rights reserved.";
+
+/* ===== Editor / preview panes ===== */
+"header.editor" = "Editor";
+"header.preview" = "Preview";
+"header.theme" = "Theme";
+"header.auto_reload" = "Auto reload";
+"header.show_preview" = "Show Preview";
+"header.hide_preview" = "Hide Preview";
+"status.words" = "%d words";
+"status.chars" = "%d characters";
+"status.reading_time" = "%d min";
+"status.reading_time_short" = "< 1 min";
+"outline.title" = "Outline";
+"outline.empty" = "No headings";
+"outline.target.editor" = "Editor";
+"outline.target.preview" = "Preview";
+
+/* ===== Toolbar ===== */
+"toolbar.heading" = "Heading";
+"toolbar.heading.level" = "Heading %d";
+"toolbar.bold" = "Bold ⌘B";
+"toolbar.italic" = "Italic ⌘I";
+"toolbar.strikethrough" = "Strikethrough";
+"toolbar.highlight" = "Highlight";
+"toolbar.inline_code" = "Inline Code";
+"toolbar.code_block" = "Code Block";
+"toolbar.link" = "Link ⌘K";
+"toolbar.image" = "Image";
+"toolbar.image.from_file" = "Insert from File…";
+"toolbar.image.from_url" = "Insert from URL";
+"toolbar.bullet_list" = "Bulleted List";
+"toolbar.numbered_list" = "Numbered List";
+"toolbar.task_list" = "Task List";
+"toolbar.blockquote" = "Blockquote";
+"toolbar.horizontal_rule" = "Horizontal Rule";
+"toolbar.table" = "Table";
+"toolbar.diagram" = "Diagram";
+"toolbar.diagram.mermaid" = "Mermaid Diagram";
+"toolbar.diagram.plantuml" = "PlantUML Diagram";
+"toolbar.math" = "Math";
+"toolbar.math.inline" = "Inline Math";
+"toolbar.math.block" = "Block Math";
+
+/* ===== Find and replace ===== */
+"find.target.editor" = "Editor";
+"find.target.preview" = "Preview";
+"find.target.help" = "Search in (editor source / preview)";
+"find.placeholder" = "Find";
+"find.no_match" = "None";
+"find.case_sensitive" = "Match Case";
+"find.previous" = "Find Previous (⇧⏎)";
+"find.next" = "Find Next (⏎)";
+"find.replace.open" = "Show Replace";
+"find.replace.close" = "Hide Replace";
+"find.replace.placeholder" = "Replace";
+"find.replace.button" = "Replace";
+"find.replace_all" = "Replace All";
+"find.recents.title" = "Recent Searches";
+"find.recents.item" = "Item";
+"find.recents.none" = "No Recent Searches";
+"find.recents.clear" = "Clear Recent Searches";
+
+/* ===== Keyboard shortcuts window ===== */
+"shortcuts.title" = "Keyboard Shortcuts";
+"shortcuts.section.file" = "File";
+"shortcuts.section.tabs" = "Tabs";
+"shortcuts.section.edit" = "Edit";
+"shortcuts.section.format" = "Format";
+"shortcuts.section.view" = "View";
+"shortcuts.new_document" = "New Document";
+"shortcuts.new_tab" = "New Tab";
+"shortcuts.new_window" = "New Window";
+"shortcuts.open" = "Open…";
+"shortcuts.close_tab" = "Close Tab";
+"shortcuts.save" = "Save";
+"shortcuts.save_as" = "Save As…";
+"shortcuts.next_tab" = "Next Tab";
+"shortcuts.previous_tab" = "Previous Tab";
+"shortcuts.go_to_tab" = "Go to Tab 1-9";
+"shortcuts.undo" = "Undo";
+"shortcuts.redo" = "Redo";
+"shortcuts.cut" = "Cut";
+"shortcuts.copy" = "Copy";
+"shortcuts.paste" = "Paste";
+"shortcuts.select_all" = "Select All";
+"shortcuts.bold" = "Bold";
+"shortcuts.italic" = "Italic";
+"shortcuts.underline" = "Underline";
+"shortcuts.insert_link" = "Insert Link";
+"shortcuts.insert_image" = "Insert Image from File";
+"shortcuts.toggle_outline" = "Toggle Outline";
+"shortcuts.settings" = "Settings";
+
+"settings.window.title" = "Settings";
+"find.panel.title" = "Find and Replace";

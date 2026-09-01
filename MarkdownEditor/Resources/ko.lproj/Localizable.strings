@@ -1,0 +1,242 @@
+/* ===== 앱 메뉴 ===== */
+"menu.app.about" = "MarkdownEditor 정보";
+"menu.app.preferences" = "설정...";
+"menu.app.hide" = "MarkdownEditor 가리기";
+"menu.app.hide_others" = "다른 항목 가리기";
+"menu.app.show_all" = "모두 보기";
+"menu.app.quit" = "MarkdownEditor 종료";
+
+/* ===== 파일 메뉴 ===== */
+"menu.file" = "파일";
+"menu.file.new_window" = "새 윈도우";
+"menu.file.new_tab" = "새 탭";
+"menu.file.open" = "열기...";
+"menu.file.open_recent" = "최근 파일 열기";
+"menu.file.close" = "닫기";
+"menu.file.save" = "저장";
+"menu.file.save_as" = "다른 이름으로 저장...";
+"menu.file.export_html" = "HTML로 내보내기...";
+"menu.file.export_pdf" = "PDF로 내보내기...";
+"menu.file.no_recent" = "최근 파일 없음";
+"menu.file.clear_recent" = "최근 기록 지우기";
+
+/* ===== 편집 메뉴 ===== */
+"menu.edit" = "편집";
+"menu.edit.undo" = "실행 취소";
+"menu.edit.redo" = "다시 실행";
+"menu.edit.cut" = "오려두기";
+"menu.edit.copy" = "복사하기";
+"menu.edit.paste" = "붙여넣기";
+"menu.edit.select_all" = "전체 선택";
+"menu.edit.find" = "찾기...";
+"menu.edit.find_replace" = "찾기 및 바꾸기...";
+"menu.edit.find_next" = "다음 찾기";
+"menu.edit.find_previous" = "이전 찾기";
+
+/* ===== 서식 메뉴 ===== */
+"menu.format" = "서식";
+"menu.format.bold" = "굵게";
+"menu.format.italic" = "기울임";
+"menu.format.link" = "링크 삽입";
+"menu.format.inline_code" = "인라인 코드";
+"menu.format.strikethrough" = "취소선";
+"menu.format.insert_image" = "이미지 삽입...";
+
+/* ===== 보기 메뉴 ===== */
+"menu.view" = "보기";
+"menu.view.toggle_tab_bar" = "탭 바 표시/숨기기";
+"menu.view.toggle_outline" = "아웃라인 표시/숨기기";
+"menu.view.typewriter_mode" = "타자기 모드";
+
+/* ===== 윈도우 메뉴 ===== */
+"menu.window" = "윈도우";
+"menu.window.new" = "새 윈도우";
+"menu.window.minimize" = "최소화";
+"menu.window.zoom" = "확대/축소";
+"menu.window.show_all_tabs" = "모든 탭 보기";
+"menu.window.merge_all" = "모든 윈도우 병합";
+"menu.window.bring_all_front" = "모두 앞으로 가져오기";
+"menu.window.go_to_tab" = "탭 %d로 이동";
+
+/* ===== 도움말 메뉴 ===== */
+"menu.help" = "도움말";
+
+/* ===== 공통 버튼 ===== */
+"button.ok" = "확인";
+"button.cancel" = "취소";
+"button.save" = "저장";
+"button.dont_save" = "저장 안 함";
+"button.reload" = "다시 불러오기";
+"button.ignore" = "무시";
+"button.allow" = "허용";
+"button.close" = "닫기";
+
+/* ===== 알림창 ===== */
+"alert.export_html_failed.title" = "HTML 내보내기 실패";
+"alert.export_pdf_save_failed.title" = "PDF를 저장하지 못했습니다";
+"alert.export_pdf_failed.title" = "PDF를 만들지 못했습니다";
+"alert.file_not_found.title" = "파일을 찾을 수 없습니다";
+"alert.file_not_found.message" = "\"%@\" 파일이 이동되었거나 삭제되었습니다.";
+"alert.save_changes.title" = "변경 사항을 저장하시겠습니까?";
+"alert.save_changes.title_named" = "\"%@\"의 변경 사항을 저장하시겠습니까?";
+"alert.save_changes.message" = "저장하지 않으면 변경 사항이 사라집니다.";
+"alert.external_change.title" = "파일이 외부에서 변경되었습니다";
+"alert.external_change.message" = "\"%@\" 파일이 다른 프로그램에서 수정되었습니다. 다시 불러오시겠습니까?";
+"alert.save_required.title" = "문서를 먼저 저장해 주세요";
+"alert.save_required.message" = "이미지를 넣으려면 문서를 먼저 저장해야 합니다.\n확인을 누르면 저장 화면이 열립니다.";
+"panel.image_open.message" = "넣을 이미지를 선택하세요";
+"panel.directory_access.message" = "이미지를 표시하려면 문서가 있는 폴더에 대한 접근을 허용해 주세요.";
+
+/* ===== 설정 ===== */
+"settings.tab.premium" = "프리미엄";
+"settings.tab.editor" = "에디터";
+"settings.tab.preview" = "미리보기";
+"settings.tab.general" = "일반";
+"settings.tab.about" = "정보";
+"settings.theme" = "테마";
+"settings.theme.dark" = "어둡게";
+"settings.theme.light" = "밝게";
+"settings.font" = "글꼴";
+"settings.font_size" = "글자 크기";
+"settings.line_numbers" = "줄 번호";
+"settings.unit.pt" = "%dpt";
+"settings.unit.px" = "%dpx";
+"settings.default_mode" = "기본 모드";
+"settings.mode.preview" = "미리보기";
+"settings.mode.html" = "HTML 소스";
+"settings.auto_reload" = "자동 새로고침";
+"settings.image_size" = "이미지 크기";
+"settings.image.optimized" = "화면에 맞춤";
+"settings.image.original" = "원본";
+"settings.max_width" = "최대 너비";
+"settings.open_files_in" = "파일 열기";
+"settings.open.new_tab" = "새 탭";
+"settings.open.new_window" = "새 윈도우";
+"settings.scroll_sync" = "스크롤 동기화";
+"settings.scroll_sync.desc" = "에디터와 미리보기 스크롤 맞추기";
+"settings.preview_pane" = "미리보기 패널";
+"settings.preview_pane.desc" = "미리보기 패널 표시";
+"settings.window_size" = "창 크기";
+"settings.window_size.desc" = "마지막 창 크기 기억";
+"settings.language" = "언어";
+"settings.language.system" = "시스템 설정 따름";
+"settings.language.restart_note" = "앱을 다시 켜면 적용됩니다";
+"settings.shortcuts" = "단축키";
+"settings.shortcuts.button" = "단축키 목록 보기";
+
+/* ===== 프리미엄 ===== */
+"premium.activated.title" = "프리미엄이 켜졌습니다";
+"premium.activated.desc" = "감사합니다. Quick Look 전체 미리보기를 포함한\n모든 프리미엄 기능을 사용할 수 있습니다.";
+"premium.title" = "Quick Look 미리보기";
+"premium.desc" = "Finder에서 마크다운 파일을 스페이스바로 미리볼 수 있습니다.\nMermaid, KaTeX, 코드 색상 표시를 지원합니다.";
+"premium.purchase" = "구매 — %@";
+"premium.loading" = "상품 정보를 불러오는 중...";
+"premium.not_found" = "상품을 찾을 수 없습니다.";
+"premium.retry" = "다시 시도";
+"premium.restore" = "구매 복원";
+
+/* ===== 스토어 오류 ===== */
+"store.error.not_found" = "상품을 찾을 수 없습니다. 잠시 후 다시 시도해 주세요.";
+"store.error.load_failed" = "상품을 불러올 수 없습니다: %@";
+"store.error.pending" = "구매가 승인 대기 중입니다.";
+"store.error.purchase_failed" = "구매 실패: %@";
+"store.error.verification_failed" = "거래 검증에 실패했습니다.";
+
+/* ===== 정보 ===== */
+"about.version" = "버전 %@ (%@)";
+"about.rights" = "© %@ All rights reserved.";
+
+/* ===== 에디터 / 미리보기 ===== */
+"header.editor" = "에디터";
+"header.preview" = "미리보기";
+"header.theme" = "테마";
+"header.auto_reload" = "자동 새로고침";
+"header.show_preview" = "미리보기 표시";
+"header.hide_preview" = "미리보기 숨기기";
+"status.words" = "%d 단어";
+"status.chars" = "%d 글자";
+"status.reading_time" = "%d분";
+"status.reading_time_short" = "1분 미만";
+"outline.title" = "아웃라인";
+"outline.empty" = "제목 없음";
+"outline.target.editor" = "에디터";
+"outline.target.preview" = "미리보기";
+
+/* ===== 툴바 ===== */
+"toolbar.heading" = "제목";
+"toolbar.heading.level" = "제목 %d";
+"toolbar.bold" = "굵게 ⌘B";
+"toolbar.italic" = "기울임 ⌘I";
+"toolbar.strikethrough" = "취소선";
+"toolbar.highlight" = "형광펜";
+"toolbar.inline_code" = "인라인 코드";
+"toolbar.code_block" = "코드 블록";
+"toolbar.link" = "링크 ⌘K";
+"toolbar.image" = "이미지";
+"toolbar.image.from_file" = "파일에서 넣기...";
+"toolbar.image.from_url" = "URL로 넣기";
+"toolbar.bullet_list" = "글머리 기호 목록";
+"toolbar.numbered_list" = "번호 매기기 목록";
+"toolbar.task_list" = "체크리스트";
+"toolbar.blockquote" = "인용구";
+"toolbar.horizontal_rule" = "구분선";
+"toolbar.table" = "표";
+"toolbar.diagram" = "다이어그램";
+"toolbar.diagram.mermaid" = "Mermaid 다이어그램";
+"toolbar.diagram.plantuml" = "PlantUML 다이어그램";
+"toolbar.math" = "수식";
+"toolbar.math.inline" = "인라인 수식";
+"toolbar.math.block" = "블록 수식";
+
+/* ===== 찾기 및 바꾸기 ===== */
+"find.target.editor" = "에디터";
+"find.target.preview" = "미리보기";
+"find.target.help" = "찾을 곳 (에디터 원문 / 미리보기)";
+"find.placeholder" = "찾기";
+"find.no_match" = "없음";
+"find.case_sensitive" = "대소문자 구분";
+"find.previous" = "이전 찾기 (⇧⏎)";
+"find.next" = "다음 찾기 (⏎)";
+"find.replace.open" = "바꾸기 열기";
+"find.replace.close" = "바꾸기 닫기";
+"find.replace.placeholder" = "바꾸기";
+"find.replace.button" = "바꾸기";
+"find.replace_all" = "모두 바꾸기";
+"find.recents.title" = "최근 검색";
+"find.recents.item" = "항목";
+"find.recents.none" = "최근 검색 없음";
+"find.recents.clear" = "최근 검색 지우기";
+
+/* ===== 단축키 안내 ===== */
+"shortcuts.title" = "단축키";
+"shortcuts.section.file" = "파일";
+"shortcuts.section.tabs" = "탭";
+"shortcuts.section.edit" = "편집";
+"shortcuts.section.format" = "서식";
+"shortcuts.section.view" = "보기";
+"shortcuts.new_document" = "새 문서";
+"shortcuts.new_tab" = "새 탭";
+"shortcuts.new_window" = "새 윈도우";
+"shortcuts.open" = "열기...";
+"shortcuts.close_tab" = "탭 닫기";
+"shortcuts.save" = "저장";
+"shortcuts.save_as" = "다른 이름으로 저장...";
+"shortcuts.next_tab" = "다음 탭";
+"shortcuts.previous_tab" = "이전 탭";
+"shortcuts.go_to_tab" = "탭 1~9로 이동";
+"shortcuts.undo" = "실행 취소";
+"shortcuts.redo" = "다시 실행";
+"shortcuts.cut" = "오려두기";
+"shortcuts.copy" = "복사하기";
+"shortcuts.paste" = "붙여넣기";
+"shortcuts.select_all" = "전체 선택";
+"shortcuts.bold" = "굵게";
+"shortcuts.italic" = "기울임";
+"shortcuts.underline" = "밑줄";
+"shortcuts.insert_link" = "링크 넣기";
+"shortcuts.insert_image" = "파일에서 이미지 넣기";
+"shortcuts.toggle_outline" = "아웃라인 표시/숨기기";
+"shortcuts.settings" = "설정";
+
+"settings.window.title" = "설정";
+"find.panel.title" = "찾기 및 바꾸기";

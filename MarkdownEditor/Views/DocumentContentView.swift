@@ -308,10 +308,10 @@ struct DocumentContentView: View {
     private func handleInsertImageFromFile() {
         if documentManager.currentFileURL == nil {
             let alert = NSAlert()
-            alert.messageText = "문서를 먼저 저장해주세요"
-            alert.informativeText = "이미지를 삽입하려면 문서를 먼저 저장해야 합니다.\n확인을 누르면 저장 화면이 열립니다."
-            alert.addButton(withTitle: "확인")
-            alert.addButton(withTitle: "취소")
+            alert.messageText = L("alert.save_required.title")
+            alert.informativeText = L("alert.save_required.message")
+            alert.addButton(withTitle: L("button.ok"))
+            alert.addButton(withTitle: L("button.cancel"))
             guard alert.runModal() == .alertFirstButtonReturn else { return }
             documentManager.saveDocumentAs()
             guard documentManager.currentFileURL != nil else { return }
@@ -321,7 +321,7 @@ struct DocumentContentView: View {
         openPanel.allowsMultipleSelection = true
         openPanel.canChooseDirectories = false
         openPanel.allowedContentTypes = [.png, .jpeg, .gif, .svg, .webP, .tiff, .bmp]
-        openPanel.message = "삽입할 이미지를 선택하세요"
+        openPanel.message = L("panel.image_open.message")
 
         // 문서 디렉토리를 기본 위치로
         if let docURL = documentManager.currentFileURL {
@@ -397,10 +397,10 @@ struct DocumentContentView: View {
         guard let imageURLs = userInfo["imageURLs"] as? [URL] else { return }
 
         let alert = NSAlert()
-        alert.messageText = "문서를 먼저 저장해주세요"
-        alert.informativeText = "이미지를 삽입하려면 문서를 먼저 저장해야 합니다.\n확인을 누르면 저장 화면이 열립니다."
-        alert.addButton(withTitle: "확인")
-        alert.addButton(withTitle: "취소")
+        alert.messageText = L("alert.save_required.title")
+        alert.informativeText = L("alert.save_required.message")
+        alert.addButton(withTitle: L("button.ok"))
+        alert.addButton(withTitle: L("button.cancel"))
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         documentManager.saveDocumentAs()
         guard let docURL = documentManager.currentFileURL,
@@ -426,10 +426,10 @@ struct DocumentContentView: View {
     private func handleImageDrop(image: NSImage, suggestedName: String) -> String? {
         if documentManager.currentFileURL == nil {
             let alert = NSAlert()
-            alert.messageText = "문서를 먼저 저장해주세요"
-            alert.informativeText = "이미지를 삽입하려면 문서를 먼저 저장해야 합니다.\n확인을 누르면 저장 화면이 열립니다."
-            alert.addButton(withTitle: "확인")
-            alert.addButton(withTitle: "취소")
+            alert.messageText = L("alert.save_required.title")
+            alert.informativeText = L("alert.save_required.message")
+            alert.addButton(withTitle: L("button.ok"))
+            alert.addButton(withTitle: L("button.cancel"))
             guard alert.runModal() == .alertFirstButtonReturn else { return nil }
             documentManager.saveDocumentAs()
             guard documentManager.currentFileURL != nil else { return nil }

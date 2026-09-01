@@ -325,7 +325,7 @@ struct EditorHeader: View {
 
     var body: some View {
         HStack {
-            Text("Editor")
+            Text("header.editor")
                 .font(.headline)
                 .foregroundColor(.secondary)
 
@@ -342,18 +342,18 @@ struct EditorHeader: View {
                 HStack(spacing: 4) {
                     Image(systemName: appState.showPreviewPane ? "rectangle.split.2x1.fill" : "rectangle.fill")
                         .font(.system(size: 12))
-                    Text("Preview")
+                    Text("header.preview")
                         .font(.system(size: 11))
                 }
                 .foregroundColor(appState.showPreviewPane ? .accentColor : .secondary)
             }
             .toggleStyle(.switch)
             .controlSize(.mini)
-            .help(appState.showPreviewPane ? "Hide Preview" : "Show Preview")
-            .accessibilityLabel(appState.showPreviewPane ? "Hide Preview" : "Show Preview")
+            .help(appState.showPreviewPane ? "header.hide_preview" : "header.show_preview")
+            .accessibilityLabel(appState.showPreviewPane ? L("header.hide_preview") : L("header.show_preview"))
 
             // 테마 선택
-            Picker("Theme", selection: $theme) {
+            Picker(L("header.theme"), selection: $theme) {
                 ForEach(EditorTheme.allCases, id: \.self) { theme in
                     Text(theme.displayName).tag(theme)
                 }
@@ -374,19 +374,19 @@ struct PreviewHeader: View {
 
     var body: some View {
         HStack {
-            Text("Preview")
+            Text("header.preview")
                 .font(.headline)
                 .foregroundColor(.secondary)
 
             Spacer()
 
             // 자동 새로고침 체크박스
-            Toggle("Auto reload", isOn: $autoReload)
+            Toggle("header.auto_reload", isOn: $autoReload)
                 .toggleStyle(.checkbox)
                 .font(.caption)
 
             // 테마 선택
-            Picker("Theme", selection: $theme) {
+            Picker(L("header.theme"), selection: $theme) {
                 ForEach(PreviewTheme.allCases, id: \.self) { theme in
                     Text(theme.displayName).tag(theme)
                 }
@@ -416,15 +416,15 @@ struct StatusBarView: View {
     private var readingTime: String {
         let minutes = max(1, wordCount / 200)
         if wordCount < 200 {
-            return "< 1 min"
+            return L("status.reading_time_short")
         }
-        return "\(minutes) min"
+        return L("status.reading_time", minutes)
     }
 
     var body: some View {
         HStack(spacing: 16) {
-            Text("\(wordCount) words")
-            Text("\(charCount) chars")
+            Text(L("status.words", wordCount))
+            Text(L("status.chars", charCount))
             Text(readingTime)
             Spacer()
         }
@@ -511,7 +511,7 @@ struct OutlineView: View {
         return VStack(alignment: .leading, spacing: 0) {
             // 헤더
             HStack {
-                Text("Outline")
+                Text("outline.title")
                     .font(.headline)
                     .foregroundColor(.secondary)
                 Spacer()
@@ -532,7 +532,7 @@ struct OutlineView: View {
             if items.isEmpty {
                 VStack {
                     Spacer()
-                    Text("No headings")
+                    Text("outline.empty")
                         .foregroundColor(.secondary)
                         .font(.caption)
                     Spacer()

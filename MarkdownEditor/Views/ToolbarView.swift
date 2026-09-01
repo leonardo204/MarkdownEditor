@@ -12,14 +12,14 @@ struct ToolbarView: View {
         HStack(spacing: 2) {
             // 헤딩
             Menu {
-                Button("Heading 1") { onAction(.heading(1)) }
-                Button("Heading 2") { onAction(.heading(2)) }
-                Button("Heading 3") { onAction(.heading(3)) }
-                Button("Heading 4") { onAction(.heading(4)) }
-                Button("Heading 5") { onAction(.heading(5)) }
-                Button("Heading 6") { onAction(.heading(6)) }
+                Button(L("toolbar.heading.level", 1)) { onAction(.heading(1)) }
+                Button(L("toolbar.heading.level", 2)) { onAction(.heading(2)) }
+                Button(L("toolbar.heading.level", 3)) { onAction(.heading(3)) }
+                Button(L("toolbar.heading.level", 4)) { onAction(.heading(4)) }
+                Button(L("toolbar.heading.level", 5)) { onAction(.heading(5)) }
+                Button(L("toolbar.heading.level", 6)) { onAction(.heading(6)) }
             } label: {
-                ToolbarMenuLabel(icon: "number", tooltip: "제목 (Heading)")
+                ToolbarMenuLabel(icon: "number", tooltip: L("toolbar.heading"))
             }
 
             Divider()
@@ -27,16 +27,16 @@ struct ToolbarView: View {
                 .padding(.horizontal, 4)
 
             // 텍스트 스타일
-            ToolbarButton(icon: "bold", tooltip: "굵게 (Bold) ⌘B") {
+            ToolbarButton(icon: "bold", tooltip: L("toolbar.bold")) {
                 onAction(.bold)
             }
-            ToolbarButton(icon: "italic", tooltip: "기울임 (Italic) ⌘I") {
+            ToolbarButton(icon: "italic", tooltip: L("toolbar.italic")) {
                 onAction(.italic)
             }
-            ToolbarButton(icon: "strikethrough", tooltip: "취소선 (Strikethrough)") {
+            ToolbarButton(icon: "strikethrough", tooltip: L("toolbar.strikethrough")) {
                 onAction(.strikethrough)
             }
-            ToolbarButton(icon: "highlighter", tooltip: "하이라이트 (Highlight)") {
+            ToolbarButton(icon: "highlighter", tooltip: L("toolbar.highlight")) {
                 onAction(.highlight)
             }
 
@@ -45,10 +45,10 @@ struct ToolbarView: View {
                 .padding(.horizontal, 4)
 
             // 코드
-            ToolbarButton(icon: "chevron.left.forwardslash.chevron.right", tooltip: "인라인 코드 (Inline Code)") {
+            ToolbarButton(icon: "chevron.left.forwardslash.chevron.right", tooltip: L("toolbar.inline_code")) {
                 onAction(.inlineCode)
             }
-            ToolbarButton(icon: "rectangle.and.text.magnifyingglass", tooltip: "코드 블록 (Code Block)") {
+            ToolbarButton(icon: "rectangle.and.text.magnifyingglass", tooltip: L("toolbar.code_block")) {
                 onAction(.codeBlock)
             }
 
@@ -57,18 +57,18 @@ struct ToolbarView: View {
                 .padding(.horizontal, 4)
 
             // 링크 및 이미지
-            ToolbarButton(icon: "link", tooltip: "링크 (Link) ⌘K") {
+            ToolbarButton(icon: "link", tooltip: L("toolbar.link")) {
                 onAction(.link)
             }
             Menu {
-                Button("파일에서 삽입...") {
+                Button("toolbar.image.from_file") {
                     onInsertImageFromFile?()
                 }
-                Button("URL로 삽입") {
+                Button("toolbar.image.from_url") {
                     onAction(.image)
                 }
             } label: {
-                ToolbarMenuLabel(icon: "photo", tooltip: "이미지 (Image)")
+                ToolbarMenuLabel(icon: "photo", tooltip: L("toolbar.image"))
             }
 
             Divider()
@@ -76,13 +76,13 @@ struct ToolbarView: View {
                 .padding(.horizontal, 4)
 
             // 리스트
-            ToolbarButton(icon: "list.bullet", tooltip: "불릿 리스트 (Bullet List)") {
+            ToolbarButton(icon: "list.bullet", tooltip: L("toolbar.bullet_list")) {
                 onAction(.bulletList)
             }
-            ToolbarButton(icon: "list.number", tooltip: "번호 리스트 (Numbered List)") {
+            ToolbarButton(icon: "list.number", tooltip: L("toolbar.numbered_list")) {
                 onAction(.numberedList)
             }
-            ToolbarButton(icon: "checklist", tooltip: "체크리스트 (Task List)") {
+            ToolbarButton(icon: "checklist", tooltip: L("toolbar.task_list")) {
                 onAction(.taskList)
             }
 
@@ -91,10 +91,10 @@ struct ToolbarView: View {
                 .padding(.horizontal, 4)
 
             // 인용 및 수평선
-            ToolbarButton(icon: "text.quote", tooltip: "인용구 (Blockquote)") {
+            ToolbarButton(icon: "text.quote", tooltip: L("toolbar.blockquote")) {
                 onAction(.blockquote)
             }
-            ToolbarButton(icon: "minus", tooltip: "수평선 (Horizontal Rule)") {
+            ToolbarButton(icon: "minus", tooltip: L("toolbar.horizontal_rule")) {
                 onAction(.horizontalRule)
             }
 
@@ -113,18 +113,18 @@ struct ToolbarView: View {
 
             // 다이어그램
             Menu {
-                Button("Mermaid 다이어그램") { onAction(.mermaid) }
-                Button("PlantUML 다이어그램") { onAction(.plantuml) }
+                Button("toolbar.diagram.mermaid") { onAction(.mermaid) }
+                Button("toolbar.diagram.plantuml") { onAction(.plantuml) }
             } label: {
-                ToolbarMenuLabel(icon: "chart.bar.doc.horizontal", tooltip: "다이어그램 (Diagram)")
+                ToolbarMenuLabel(icon: "chart.bar.doc.horizontal", tooltip: L("toolbar.diagram"))
             }
 
             // 수식
             Menu {
-                Button("인라인 수식") { onAction(.inlineMath) }
-                Button("블록 수식") { onAction(.blockMath) }
+                Button("toolbar.math.inline") { onAction(.inlineMath) }
+                Button("toolbar.math.block") { onAction(.blockMath) }
             } label: {
-                ToolbarMenuLabel(icon: "function", tooltip: "수식 (Math)")
+                ToolbarMenuLabel(icon: "function", tooltip: L("toolbar.math"))
             }
 
             Spacer()
@@ -153,7 +153,7 @@ struct TableSelectorButton: View {
                 .frame(width: 28, height: 24)
         }
         .buttonStyle(.plain)
-        .background(TooltipWrapper(tooltip: "테이블 (Table)"))
+        .background(TooltipWrapper(tooltip: L("toolbar.table")))
         .popover(isPresented: $isPresented, arrowEdge: .bottom) {
             VStack(alignment: .leading, spacing: 8) {
                 // 크기 표시

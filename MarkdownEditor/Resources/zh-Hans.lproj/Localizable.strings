@@ -1,0 +1,242 @@
+/* ===== 应用程序菜单 ===== */
+"menu.app.about" = "关于 MarkdownEditor";
+"menu.app.preferences" = "设置…";
+"menu.app.hide" = "隐藏 MarkdownEditor";
+"menu.app.hide_others" = "隐藏其他";
+"menu.app.show_all" = "全部显示";
+"menu.app.quit" = "退出 MarkdownEditor";
+
+/* ===== 文件菜单 ===== */
+"menu.file" = "文件";
+"menu.file.new_window" = "新建窗口";
+"menu.file.new_tab" = "新建标签页";
+"menu.file.open" = "打开…";
+"menu.file.open_recent" = "打开最近使用";
+"menu.file.close" = "关闭";
+"menu.file.save" = "存储";
+"menu.file.save_as" = "存储为…";
+"menu.file.export_html" = "导出为 HTML…";
+"menu.file.export_pdf" = "导出为 PDF…";
+"menu.file.no_recent" = "没有最近使用的文件";
+"menu.file.clear_recent" = "清除菜单";
+
+/* ===== 编辑菜单 ===== */
+"menu.edit" = "编辑";
+"menu.edit.undo" = "撤销";
+"menu.edit.redo" = "重做";
+"menu.edit.cut" = "剪切";
+"menu.edit.copy" = "拷贝";
+"menu.edit.paste" = "粘贴";
+"menu.edit.select_all" = "全选";
+"menu.edit.find" = "查找…";
+"menu.edit.find_replace" = "查找与替换…";
+"menu.edit.find_next" = "查找下一个";
+"menu.edit.find_previous" = "查找上一个";
+
+/* ===== 格式菜单 ===== */
+"menu.format" = "格式";
+"menu.format.bold" = "粗体";
+"menu.format.italic" = "斜体";
+"menu.format.link" = "插入链接";
+"menu.format.inline_code" = "行内代码";
+"menu.format.strikethrough" = "删除线";
+"menu.format.insert_image" = "插入图像…";
+
+/* ===== 显示菜单 ===== */
+"menu.view" = "显示";
+"menu.view.toggle_tab_bar" = "显示/隐藏标签栏";
+"menu.view.toggle_outline" = "显示/隐藏大纲";
+"menu.view.typewriter_mode" = "打字机模式";
+
+/* ===== 窗口菜单 ===== */
+"menu.window" = "窗口";
+"menu.window.new" = "新建窗口";
+"menu.window.minimize" = "最小化";
+"menu.window.zoom" = "缩放";
+"menu.window.show_all_tabs" = "显示所有标签页";
+"menu.window.merge_all" = "合并所有窗口";
+"menu.window.bring_all_front" = "前置全部窗口";
+"menu.window.go_to_tab" = "转到标签页 %d";
+
+/* ===== 帮助菜单 ===== */
+"menu.help" = "帮助";
+
+/* ===== 通用按钮 ===== */
+"button.ok" = "好";
+"button.cancel" = "取消";
+"button.save" = "存储";
+"button.dont_save" = "不存储";
+"button.reload" = "重新载入";
+"button.ignore" = "忽略";
+"button.allow" = "允许";
+"button.close" = "关闭";
+
+/* ===== 提示对话框 ===== */
+"alert.export_html_failed.title" = "HTML 导出失败";
+"alert.export_pdf_save_failed.title" = "无法存储 PDF";
+"alert.export_pdf_failed.title" = "无法创建 PDF";
+"alert.file_not_found.title" = "找不到文件";
+"alert.file_not_found.message" = "文件“%@”已被移动或删除。";
+"alert.save_changes.title" = "要存储所做的更改吗？";
+"alert.save_changes.title_named" = "要存储对“%@”所做的更改吗？";
+"alert.save_changes.message" = "如果不存储，你的更改将会丢失。";
+"alert.external_change.title" = "文件已被其他 App 修改";
+"alert.external_change.message" = "“%@”已在此 App 之外被修改。要重新载入吗？";
+"alert.save_required.title" = "请先存储文稿";
+"alert.save_required.message" = "插入图像前必须先存储文稿。\n点按“好”以打开存储对话框。";
+"panel.image_open.message" = "选择要插入的图像";
+"panel.directory_access.message" = "若要显示图像，请允许访问包含此文稿的文件夹。";
+
+/* ===== 设置 ===== */
+"settings.tab.premium" = "高级版";
+"settings.tab.editor" = "编辑器";
+"settings.tab.preview" = "预览";
+"settings.tab.general" = "通用";
+"settings.tab.about" = "关于";
+"settings.theme" = "主题";
+"settings.theme.dark" = "深色";
+"settings.theme.light" = "浅色";
+"settings.font" = "字体";
+"settings.font_size" = "字体大小";
+"settings.line_numbers" = "行号";
+"settings.unit.pt" = "%d pt";
+"settings.unit.px" = "%d px";
+"settings.default_mode" = "默认模式";
+"settings.mode.preview" = "预览";
+"settings.mode.html" = "HTML 源代码";
+"settings.auto_reload" = "自动重新载入";
+"settings.image_size" = "图像大小";
+"settings.image.optimized" = "已优化";
+"settings.image.original" = "原始大小";
+"settings.max_width" = "最大宽度";
+"settings.open_files_in" = "打开文件方式";
+"settings.open.new_tab" = "新建标签页";
+"settings.open.new_window" = "新建窗口";
+"settings.scroll_sync" = "滚动同步";
+"settings.scroll_sync.desc" = "同步编辑器与预览";
+"settings.preview_pane" = "预览面板";
+"settings.preview_pane.desc" = "显示预览面板";
+"settings.window_size" = "窗口大小";
+"settings.window_size.desc" = "记住上次窗口大小";
+"settings.language" = "语言";
+"settings.language.system" = "跟随系统";
+"settings.language.restart_note" = "重新启动 App 后生效";
+"settings.shortcuts" = "快捷键";
+"settings.shortcuts.button" = "查看键盘快捷键";
+
+/* ===== 高级版 ===== */
+"premium.activated.title" = "高级版已启用！";
+"premium.activated.desc" = "感谢你的支持！包括 Quick Look 完整预览在内的\n所有高级功能现已可用。";
+"premium.title" = "Quick Look 预览";
+"premium.desc" = "在访达中用空格键预览 Markdown 文件。\n支持 Mermaid、KaTeX 和代码高亮。";
+"premium.purchase" = "购买 — %@";
+"premium.loading" = "正在载入商品信息…";
+"premium.not_found" = "找不到商品。";
+"premium.retry" = "重试";
+"premium.restore" = "恢复购买";
+
+/* ===== 商店错误 ===== */
+"store.error.not_found" = "找不到商品。请稍后重试。";
+"store.error.load_failed" = "无法载入商品：%@";
+"store.error.pending" = "购买正在等待批准。";
+"store.error.purchase_failed" = "购买失败：%@";
+"store.error.verification_failed" = "交易验证失败。";
+
+/* ===== 关于 ===== */
+"about.version" = "版本 %@ (%@)";
+"about.rights" = "© %@ All rights reserved.";
+
+/* ===== 编辑器 / 预览面板 ===== */
+"header.editor" = "编辑器";
+"header.preview" = "预览";
+"header.theme" = "主题";
+"header.auto_reload" = "自动重新载入";
+"header.show_preview" = "显示预览";
+"header.hide_preview" = "隐藏预览";
+"status.words" = "%d 个词";
+"status.chars" = "%d 个字符";
+"status.reading_time" = "%d 分钟";
+"status.reading_time_short" = "< 1 分钟";
+"outline.title" = "大纲";
+"outline.empty" = "没有标题";
+"outline.target.editor" = "编辑器";
+"outline.target.preview" = "预览";
+
+/* ===== 工具栏 ===== */
+"toolbar.heading" = "标题";
+"toolbar.heading.level" = "标题 %d";
+"toolbar.bold" = "粗体 ⌘B";
+"toolbar.italic" = "斜体 ⌘I";
+"toolbar.strikethrough" = "删除线";
+"toolbar.highlight" = "高亮";
+"toolbar.inline_code" = "行内代码";
+"toolbar.code_block" = "代码块";
+"toolbar.link" = "链接 ⌘K";
+"toolbar.image" = "图像";
+"toolbar.image.from_file" = "从文件插入…";
+"toolbar.image.from_url" = "从 URL 插入";
+"toolbar.bullet_list" = "项目符号列表";
+"toolbar.numbered_list" = "编号列表";
+"toolbar.task_list" = "任务列表";
+"toolbar.blockquote" = "引用块";
+"toolbar.horizontal_rule" = "分隔线";
+"toolbar.table" = "表格";
+"toolbar.diagram" = "图表";
+"toolbar.diagram.mermaid" = "Mermaid 图表";
+"toolbar.diagram.plantuml" = "PlantUML 图表";
+"toolbar.math" = "数学公式";
+"toolbar.math.inline" = "行内公式";
+"toolbar.math.block" = "块级公式";
+
+/* ===== 查找与替换 ===== */
+"find.target.editor" = "编辑器";
+"find.target.preview" = "预览";
+"find.target.help" = "搜索范围（编辑器源码 / 预览）";
+"find.placeholder" = "查找";
+"find.no_match" = "无";
+"find.case_sensitive" = "区分大小写";
+"find.previous" = "查找上一个 (⇧⏎)";
+"find.next" = "查找下一个 (⏎)";
+"find.replace.open" = "显示替换";
+"find.replace.close" = "隐藏替换";
+"find.replace.placeholder" = "替换";
+"find.replace.button" = "替换";
+"find.replace_all" = "全部替换";
+"find.recents.title" = "最近搜索";
+"find.recents.item" = "项目";
+"find.recents.none" = "没有最近搜索";
+"find.recents.clear" = "清除最近搜索";
+
+/* ===== 键盘快捷键窗口 ===== */
+"shortcuts.title" = "键盘快捷键";
+"shortcuts.section.file" = "文件";
+"shortcuts.section.tabs" = "标签页";
+"shortcuts.section.edit" = "编辑";
+"shortcuts.section.format" = "格式";
+"shortcuts.section.view" = "显示";
+"shortcuts.new_document" = "新建文稿";
+"shortcuts.new_tab" = "新建标签页";
+"shortcuts.new_window" = "新建窗口";
+"shortcuts.open" = "打开…";
+"shortcuts.close_tab" = "关闭标签页";
+"shortcuts.save" = "存储";
+"shortcuts.save_as" = "存储为…";
+"shortcuts.next_tab" = "下一个标签页";
+"shortcuts.previous_tab" = "上一个标签页";
+"shortcuts.go_to_tab" = "转到标签页 1-9";
+"shortcuts.undo" = "撤销";
+"shortcuts.redo" = "重做";
+"shortcuts.cut" = "剪切";
+"shortcuts.copy" = "拷贝";
+"shortcuts.paste" = "粘贴";
+"shortcuts.select_all" = "全选";
+"shortcuts.bold" = "粗体";
+"shortcuts.italic" = "斜体";
+"shortcuts.underline" = "下划线";
+"shortcuts.insert_link" = "插入链接";
+"shortcuts.insert_image" = "从文件插入图像";
+"shortcuts.toggle_outline" = "切换大纲";
+"shortcuts.settings" = "设置";
+
+"settings.window.title" = "设置";
+"find.panel.title" = "查找与替换";

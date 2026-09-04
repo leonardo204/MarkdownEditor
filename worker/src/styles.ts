@@ -19,7 +19,7 @@ export const CSS = `
 html{scroll-behavior:smooth}
 body{font-family:var(--font);color:var(--dark);background:var(--white);line-height:1.65;
   -webkit-font-smoothing:antialiased;word-break:keep-all}
-img{max-width:100%;display:block}
+img{max-width:100%;height:auto;display:block}
 a{color:var(--blue-dark);text-decoration:none}
 a:hover{text-decoration:underline}
 
@@ -79,7 +79,7 @@ a:hover{text-decoration:underline}
 .shots{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:44px}
 .shot{background:var(--white);border:1px solid var(--border);border-radius:var(--radius-lg);
   overflow:hidden;box-shadow:var(--shadow)}
-.shot img{width:100%}
+.shot img{width:100%;height:auto}
 .shot .cap{padding:18px 22px 22px}
 .shot .cap h3{font-size:16.5px;font-weight:800;margin-bottom:6px;letter-spacing:-.3px}
 .shot .cap p{font-size:14px;color:var(--mid)}

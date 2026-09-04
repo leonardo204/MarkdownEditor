@@ -75,6 +75,7 @@ logs/
 !appstore/*.png
 !resources/*.png
 !samples/*.png
+!worker/public/assets/*.png
 
 # Test files
 playwright_mcp_documentation.md

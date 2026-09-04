@@ -187,7 +187,7 @@ export function renderLanding(lang: Lang): string {
     ${appStoreBadge(c)}
     <div class="hero-meta">${esc(c.heroMeta)}</div>
     <div class="hero-shot">
-      <img src="/assets/shot-main.jpg" width="1760" height="1142"
+      <img src="/assets/shot-main.jpg" width="1760" height="1220"
            alt="${esc(c.heroShotAlt)}" fetchpriority="high">
     </div>
   </div>
@@ -225,7 +225,7 @@ export function renderLanding(lang: Lang): string {
       ${c.shots
 				.map(
 					(s) => `<figure class="shot">
-        <img src="${s.src}" loading="lazy" width="1760" height="1100" alt="${esc(s.alt)}">
+        <img src="${s.src}" loading="lazy" width="1760" height="1220" alt="${esc(s.alt)}">
         <figcaption class="cap"><h3>${esc(s.title)}</h3><p>${esc(s.body)}</p></figcaption>
       </figure>`,
 				)

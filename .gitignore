@@ -74,6 +74,7 @@ logs/
 !**/Assets.xcassets/**/*.png
 !appstore/*.png
 !resources/*.png
+!samples/*.png
 
 # Test files
 playwright_mcp_documentation.md

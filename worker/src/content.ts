@@ -111,7 +111,7 @@ export const KO: Copy = {
 	badgeBig: "App Store",
 	heroMeta: "무료 · macOS 13(Ventura) 이상 · Apple Silicon과 Intel 모두 지원",
 	heroShotAlt:
-		"MarkChartEditor 화면: 왼쪽 마크다운 편집 화면과 오른쪽 미리보기에 Mermaid 순서도, PlantUML 다이어그램, 표, 체크리스트가 그려진 모습",
+		"MarkChartEditor 화면: 왼쪽 어두운 편집 화면과 오른쪽 밝은 미리보기에 제목, 체크리스트, Swift 코드 블록이 나란히 보이는 모습",
 
 	featBadge: "core features",
 	featTitle: "글 쓰는 흐름을 끊지 않습니다",
@@ -155,15 +155,15 @@ export const KO: Copy = {
 	shots: [
 		{
 			src: "/assets/shot-diagram.jpg",
-			alt: "왼쪽 편집 화면의 Mermaid 코드가 오른쪽 미리보기에서 상태 흐름도로 그려진 모습",
+			alt: "왼쪽 편집 화면의 Mermaid·PlantUML 코드가 오른쪽 미리보기에서 순서도와 시퀀스 다이어그램으로 그려진 모습",
 			title: "쓰면 바로 그림이 됩니다",
 			body: "코드 블록에 mermaid나 plantuml이라고 적으면 미리보기에서 그림으로 바뀝니다. 한글 라벨도 그대로 나옵니다.",
 		},
 		{
 			src: "/assets/shot-tabs.jpg",
-			alt: "여러 창을 겹쳐 띄우고 밝은 테마와 어두운 테마를 함께 쓰는 모습",
+			alt: "문서 세 개를 탭으로 열어 둔 창에서 KaTeX 수식과 숫자 표가 미리보기에 그려진 모습",
 			title: "여러 문서를 나란히",
-			body: "탭으로 모아 두거나 창을 따로 띄워 비교합니다. 마지막에 맞춰 둔 창 크기도 기억합니다.",
+			body: "탭으로 모아 두고 오가며 봅니다. KaTeX 수식과 표도 미리보기에서 그대로 그려집니다.",
 		},
 	],
 
@@ -309,7 +309,7 @@ export const EN: Copy = {
 	badgeBig: "App Store",
 	heroMeta: "Free · macOS 13 (Ventura) or later · Apple Silicon and Intel",
 	heroShotAlt:
-		"MarkChartEditor window showing markdown source on the left and a live preview with a Mermaid flowchart, a PlantUML diagram, a table, and a checklist on the right",
+		"MarkChartEditor window with the dark editor on the left and a light live preview on the right showing headings, a checklist, and a Swift code block",
 
 	featBadge: "core features",
 	featTitle: "Nothing interrupts the writing",
@@ -353,15 +353,15 @@ export const EN: Copy = {
 	shots: [
 		{
 			src: "/assets/shot-diagram.jpg",
-			alt: "Mermaid source on the left rendered as a state flowchart in the preview on the right",
+			alt: "Mermaid and PlantUML source on the left rendered as flowcharts and sequence diagrams in the preview on the right",
 			title: "Type it, see it drawn",
 			body: "Mark a code block as mermaid or plantuml and the preview turns it into a diagram, non-Latin labels included.",
 		},
 		{
 			src: "/assets/shot-tabs.jpg",
-			alt: "Several editor windows layered, one in the light theme and one in the dark theme",
+			alt: "One window with three documents open as tabs, the preview showing KaTeX formulas and a numeric table",
 			title: "Several documents side by side",
-			body: "Keep them in tabs or float separate windows to compare. The app also remembers the window size you last set.",
+			body: "Keep them in tabs and switch as you go. KaTeX formulas and tables render in the preview too.",
 		},
 	],
 

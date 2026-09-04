@@ -14,9 +14,12 @@
  * 앱은 Mac App Store에서 배포한다. 이 worker는 소개와 정책 문서만 맡는다.
  */
 import { renderLanding, renderPrivacy, SITE, APP_STORE_URL, REPO_URL, APP_NAME, APP_VERSION, CONTACT_EMAIL } from "./render";
+import { sendHit } from "./hit";
 
 interface Env {
 	ASSETS: Fetcher;
+	/** 방문 기록을 대시보드로 보낼 때 쓰는 토큰(secret). 없으면 기록을 보내지 않는다. */
+	TRAFFIC_TOKEN?: string;
 }
 
 const LAST_MOD = "2026-09-04";
@@ -197,7 +200,8 @@ function isInsecure(request: Request): boolean {
 }
 
 export default {
-	async fetch(request: Request, env: Env): Promise<Response> {
+	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+		const startedAt = Date.now();
 		const url = new URL(request.url);
 
 		if (isInsecure(request)) {
@@ -210,6 +214,7 @@ export default {
 		out.headers.set("Strict-Transport-Security", "max-age=31536000");
 		out.headers.set("X-Content-Type-Options", "nosniff");
 		out.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+		sendHit("md-editor", request, out, env, ctx, startedAt);
 		return out;
 	},
 } satisfies ExportedHandler<Env>;

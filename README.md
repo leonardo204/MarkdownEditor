@@ -11,7 +11,7 @@
 macOS용 마크다운 에디터입니다. 실시간 미리보기와 스크롤 동기화를 제공합니다.
 
 > Mac App Store에는 **MarkChartEditor**라는 이름으로 등록되어 있습니다.
-> [App Store에서 받기](https://apps.apple.com/app/id6756916654)
+> [App Store에서 받기](https://apps.apple.com/app/id6756916654) · [소개 페이지](https://md-editor.zerolive.co.kr/)
 
 ## 주요 기능
 

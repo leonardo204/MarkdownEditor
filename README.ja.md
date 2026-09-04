@@ -11,7 +11,7 @@
 macOS 向けの Markdown エディタです。リアルタイムプレビューとスクロール同期に対応しています。
 
 > Mac App Store では **MarkChartEditor** という名前で公開しています。
-> [App Store で入手](https://apps.apple.com/app/id6756916654)
+> [App Store で入手](https://apps.apple.com/app/id6756916654) · [紹介ページ](https://md-editor.zerolive.co.kr/en)
 
 ## 主な機能
 

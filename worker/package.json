@@ -1,0 +1,18 @@
+{
+	"name": "md-editor-landing",
+	"version": "1.0.0",
+	"private": true,
+	"description": "MarkChartEditor 랜딩 페이지 (Cloudflare Workers) — md-editor.zerolive.co.kr",
+	"scripts": {
+		"dev": "wrangler dev",
+		"start": "wrangler dev",
+		"deploy": "wrangler deploy",
+		"dry-run": "wrangler deploy --dry-run --outdir dist",
+		"typecheck": "tsc --noEmit"
+	},
+	"devDependencies": {
+		"@cloudflare/workers-types": "^5.20260828.1",
+		"typescript": "^5.5.2",
+		"wrangler": "^4.64.0"
+	}
+}

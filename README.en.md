@@ -11,7 +11,7 @@
 A Markdown editor for macOS with live preview and scroll synchronization.
 
 > Published on the Mac App Store as **MarkChartEditor**.
-> [Get it on the App Store](https://apps.apple.com/app/id6756916654)
+> [Get it on the App Store](https://apps.apple.com/app/id6756916654) · [Website](https://md-editor.zerolive.co.kr/en)
 
 ## Features
 

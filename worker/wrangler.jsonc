@@ -1,0 +1,21 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "md-editor",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-08-24",
+	"compatibility_flags": ["nodejs_compat"],
+	"assets": {
+		"directory": "./public",
+		"binding": "ASSETS"
+	},
+	"observability": {
+		"enabled": true
+	},
+	// 이 worker는 랜딩·개인정보처리방침만 맡는다. 앱 자체는 Mac App Store에서 배포한다.
+	"routes": [
+		{
+			"pattern": "md-editor.zerolive.co.kr",
+			"custom_domain": true
+		}
+	]
+}

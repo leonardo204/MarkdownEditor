@@ -11,7 +11,7 @@
 一款 macOS 上的 Markdown 编辑器，支持实时预览与滚动同步。
 
 > 在 Mac App Store 上的名称为 **MarkChartEditor**。
-> [在 App Store 获取](https://apps.apple.com/app/id6756916654)
+> [在 App Store 获取](https://apps.apple.com/app/id6756916654) · [介绍页面](https://md-editor.zerolive.co.kr/en)
 
 ## 主要功能
 

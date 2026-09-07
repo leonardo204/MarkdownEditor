@@ -51,7 +51,9 @@ function appStoreBadge(c: Copy): string {
 function shell(o: ShellOpts): string {
 	const c = COPY[o.lang];
 	const p = paths(o.lang);
-	const ld = (o.jsonLd ?? [])
+	// 사이트·개발자 정보는 모든 페이지에 함께 싣는다.
+	// 페이지별 데이터(앱 정보·FAQ)는 호출하는 쪽에서 넘긴다.
+	const ld = [siteJsonLd(o.lang), orgJsonLd(), ...(o.jsonLd ?? [])]
 		.map((x) => `<script type="application/ld+json">${JSON.stringify(x)}</script>`)
 		.join("\n");
 
@@ -64,6 +66,7 @@ function shell(o: ShellOpts): string {
 <meta name="description" content="${esc(o.desc)}">
 ${o.keywords ? `<meta name="keywords" content="${esc(o.keywords)}">` : ""}
 <meta name="author" content="zerolive">
+<meta name="theme-color" content="#4A8CF7">
 <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1">
 <link rel="canonical" href="${o.canonical}">
 <link rel="alternate" hreflang="ko" href="${o.altKo}">
@@ -121,6 +124,37 @@ ${o.body}
 
 </body>
 </html>`;
+}
+
+/** 사이트 자체를 설명한다. 검색 결과에 사이트 이름이 제대로 표기되게 한다. */
+function siteJsonLd(lang: Lang): unknown {
+	const c = COPY[lang];
+	return {
+		"@context": "https://schema.org",
+		"@type": "WebSite",
+		"@id": SITE + "/#website",
+		name: APP_NAME,
+		alternateName: "MarkdownEditor",
+		url: SITE + "/",
+		description: c.desc,
+		inLanguage: ["ko", "en"],
+		publisher: { "@id": SITE + "/#publisher" },
+	};
+}
+
+/** 만든 사람 정보. 여러 앱 랜딩이 같은 개발자임을 검색 엔진에 알린다. */
+function orgJsonLd(): unknown {
+	return {
+		"@context": "https://schema.org",
+		"@type": "Organization",
+		"@id": SITE + "/#publisher",
+		name: "zerolive",
+		legalName: "YONGSUB LEE",
+		url: SITE + "/",
+		logo: SITE + "/assets/icon.png",
+		email: CONTACT_EMAIL,
+		sameAs: [REPO_URL, APP_STORE_URL],
+	};
 }
 
 /** 앱 자체를 설명하는 구조화 데이터. 검색 결과의 앱 카드와 AI 답변의 근거가 된다. */

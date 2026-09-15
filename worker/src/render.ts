@@ -48,6 +48,33 @@ function appStoreBadge(c: Copy): string {
 </a>`;
 }
 
+/**
+ * 같은 사람이 만든 다른 앱 — 바닥글에 서로를 걸어 둔다.
+ *
+ * 검색 엔진은 "어디서 링크가 걸려 오나"로 사이트의 무게를 잰다. 서브도메인끼리
+ * 서로 모르는 채 떨어져 있으면 각자가 외딴 섬이라 크롤러가 robots.txt 만 확인하고
+ * 돌아간다(실제로 그랬다). 읽는 사람에게도 값이 있다 — 이 앱이 마음에 들었다면
+ * 나머지도 같은 사람이 만든 것이다.
+ *
+ * 자기 자신은 빼고 그린다. 한국어 이름밖에 없는 앱은 영어 화면에서도 그대로 쓴다 —
+ * 스토어에 없는 이름을 지어내면 찾아갔을 때 다른 이름이 나온다.
+ */
+const SIBLINGS: { host: string; ko: string; en: string }[] = [
+	{ host: "lnhud", ko: "LnHud", en: "LnHud" },
+	{ host: "md-editor", ko: "MarkChartEditor", en: "MarkChartEditor" },
+	{ host: "golf", ko: "라운드온", en: "RoundOn" },
+	{ host: "wander", ko: "Wandery", en: "Wandery" },
+	{ host: "hamzzi-diet", ko: "햄찌 다이어트", en: "햄찌 다이어트" },
+];
+const SELF_HOST = "md-editor";
+const PORTFOLIO = "https://me.zerolive.co.kr";
+
+function siblingLinks(lang: Lang): string {
+	return SIBLINGS.filter((s) => s.host !== SELF_HOST)
+		.map((s) => `<a href="https://${s.host}.zerolive.co.kr/">${esc(lang === "en" ? s.en : s.ko)}</a>`)
+		.join(" &nbsp;·&nbsp; ");
+}
+
 function shell(o: ShellOpts): string {
 	const c = COPY[o.lang];
 	const p = paths(o.lang);
@@ -113,13 +140,14 @@ ${o.body}
 
 <footer>
   <div class="container">
-    <span>© 2026 ${APP_NAME} · ${esc(c.footerNote)}</span>
+    <span>© 2026 ${APP_NAME} · <a href="${PORTFOLIO}${o.lang === "en" ? "/en" : "/ko"}">${esc(c.footerNote)}</a></span>
     <span>
       <a href="${p.privacy}">${esc(c.footerPrivacy)}</a> &nbsp;·&nbsp;
       <a href="${REPO_URL}" target="_blank" rel="noopener">${esc(c.footerSource)}</a> &nbsp;·&nbsp;
       <a href="mailto:${CONTACT_EMAIL}">${esc(c.footerContact)}</a>
     </span>
   </div>
+  <div class="container sib"><span class="lb">${esc(c.footerMore)}</span>${siblingLinks(o.lang)}</div>
 </footer>
 
 </body>

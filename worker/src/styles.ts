@@ -126,6 +126,10 @@ a:hover{text-decoration:underline}
 footer{border-top:1px solid var(--border);padding:34px 0 48px;color:var(--light);font-size:13.5px}
 footer .container{display:flex;flex-wrap:wrap;gap:12px 22px;align-items:center;justify-content:space-between}
 footer a{color:var(--light);font-weight:600}
+/* 같은 사람이 만든 다른 앱 — 바닥글 둘째 줄. 본문과 섞이지 않게 선 하나로 가른다. */
+footer .sib{margin-top:15px;padding-top:15px;border-top:1px solid var(--border);
+  justify-content:flex-start;gap:7px 12px;font-size:13px}
+footer .sib .lb{font-weight:700;opacity:.7}
 
 @media(max-width:900px){
   .features-grid{grid-template-columns:1fr 1fr}

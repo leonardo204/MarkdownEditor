@@ -82,6 +82,7 @@ export interface Copy {
 	footerPrivacy: string;
 	footerContact: string;
 	footerSource: string;
+	footerMore: string;
 
 	privacyTitle: string;
 	privacyDesc: string;
@@ -247,6 +248,7 @@ export const KO: Copy = {
 	footerPrivacy: "개인정보처리방침",
 	footerContact: "문의",
 	footerSource: "소스 코드",
+	footerMore: "다른 앱",
 
 	privacyTitle: "개인정보처리방침",
 	privacyDesc: "MarkChartEditor는 개인정보를 수집하지 않습니다. 문서는 사용자의 Mac에만 저장됩니다.",
@@ -445,6 +447,7 @@ export const EN: Copy = {
 	footerPrivacy: "Privacy Policy",
 	footerContact: "Contact",
 	footerSource: "Source code",
+	footerMore: "More apps",
 
 	privacyTitle: "Privacy Policy",
 	privacyDesc: "MarkChartEditor collects no personal data. Your documents stay on your Mac.",

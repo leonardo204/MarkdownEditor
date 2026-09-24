@@ -65,6 +65,7 @@ const SIBLINGS: { host: string; ko: string; en: string }[] = [
 	{ host: "golf", ko: "라운드온", en: "RoundOn" },
 	{ host: "wander", ko: "Wandery", en: "Wandery" },
 	{ host: "hamzzi-diet", ko: "햄찌 다이어트", en: "햄찌 다이어트" },
+	{ host: "zeroplayer", ko: "zeroPlayer", en: "zeroPlayer" },
 ];
 const SELF_HOST = "md-editor";
 const PORTFOLIO = "https://me.zerolive.co.kr";
